@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Mock LowerThirds.app implementing protocol v1 (docs/PROTOCOL.md):
+ * Mock LifeCG.app implementing protocol v1 (docs/PROTOCOL.md):
  * WebSocket at /ws plus the HTTP /api endpoints.
  *
  *   node test/mock-server.mjs [port]      (default 9123)
@@ -167,5 +167,5 @@ export async function startMockServer({ port = 9123, host = '127.0.0.1', respond
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
 	const port = Number(process.argv[2] ?? 9123)
 	const srv = await startMockServer({ port, host: '0.0.0.0', log: true })
-	console.log(`Mock LowerThirds listening on ws://0.0.0.0:${srv.port}/ws`)
+	console.log(`Mock LifeCG listening on ws://0.0.0.0:${srv.port}/ws`)
 }

@@ -1,7 +1,7 @@
 import Foundation
 import Metal
-#if canImport(LowerThirdsCore)
-import LowerThirdsCore
+#if canImport(LifeCGCore)
+import LifeCGCore
 #endif
 import Syphon
 

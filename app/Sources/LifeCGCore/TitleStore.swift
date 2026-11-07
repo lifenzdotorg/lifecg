@@ -73,7 +73,7 @@ public final class TitleStore {
 
     public static var defaultFileURL: URL {
         let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("LowerThirds", isDirectory: true)
+            .appendingPathComponent("LifeCG", isDirectory: true)
         return dir.appendingPathComponent("recent.json")
     }
 
@@ -146,7 +146,7 @@ public final class TitleStore {
                 try FileManager.default.createDirectory(at: fileURL.deletingLastPathComponent(), withIntermediateDirectories: true)
                 try enc.encode(state.recent).write(to: fileURL, options: .atomic)
             } catch {
-                NSLog("LowerThirds: failed to save recent titles: \(error)")
+                NSLog("LifeCG: failed to save recent titles: \(error)")
             }
         }
         onChange?(state)

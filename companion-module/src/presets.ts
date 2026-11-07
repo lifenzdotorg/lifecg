@@ -15,7 +15,7 @@ export const RECENT_PRESET_COUNT = 10
  * when the preset is placed on a button (see companion/lib/Instance/Definitions.ts,
  * replaceAllVariables), so this works whatever the connection is called.
  */
-const V = (name: string) => `$(lifenz-lowerthirds:${name})`
+const V = (name: string) => `$(lifenz-lifecg:${name})`
 
 export function buildPresets(): {
 	structure: CompanionPresetSection<ModuleSchema>[]
@@ -77,7 +77,7 @@ export function buildPresets(): {
 		{
 			id: 'recent',
 			name: 'Recent Titles',
-			description: 'Buttons showing the Nth most recent title. Labels update live from LowerThirds.app.',
+			description: 'Buttons showing the Nth most recent title. Labels update live from LifeCG.app.',
 			definitions: [
 				{
 					id: 'recent_positions',

@@ -1,5 +1,5 @@
 import type { CompanionFeedbackDefinitions } from '@companion-module/base'
-import { CUSTOM_CHOICE_ID, currentMatchesText, recentChoices, type LowerThirdsState } from './protocol.js'
+import { CUSTOM_CHOICE_ID, currentMatchesText, recentChoices, type LifeCGState } from './protocol.js'
 
 export type FeedbacksSchema = {
 	on_air: { type: 'boolean'; options: Record<string, never> }
@@ -11,7 +11,7 @@ const WHITE = 0xffffff
 
 const str = (v: unknown): string => (v === undefined || v === null ? '' : String(v))
 
-export function buildFeedbackDefinitions(getState: () => LowerThirdsState): CompanionFeedbackDefinitions<FeedbacksSchema> {
+export function buildFeedbackDefinitions(getState: () => LifeCGState): CompanionFeedbackDefinitions<FeedbacksSchema> {
 	const state = getState()
 	const visibleWhenText = `$(options:recent) == '${CUSTOM_CHOICE_ID}'`
 

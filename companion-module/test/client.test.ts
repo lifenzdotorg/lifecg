@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { startMockServer, titleId, type MockServer } from './mock-server.mjs'
-import { LowerThirdsClient, type ClientStatus } from '../src/client.js'
+import { LifeCGClient, type ClientStatus } from '../src/client.js'
 import { buildActionDefinitions, type ActionContext } from '../src/actions.js'
 import { buildFeedbackDefinitions } from '../src/feedbacks.js'
-import { CUSTOM_CHOICE_ID, stateToVariables, type LowerThirdsState } from '../src/protocol.js'
+import { CUSTOM_CHOICE_ID, stateToVariables, type LifeCGState } from '../src/protocol.js'
 
 /** Poll until predicate is true. */
 async function waitFor(pred: () => boolean, timeoutMs = 5000, what = 'condition'): Promise<void> {
@@ -16,11 +16,11 @@ async function waitFor(pred: () => boolean, timeoutMs = 5000, what = 'condition'
 
 type Logged = { level: string; message: string }
 
-function setup(srv: MockServer, name = 'Main Desk', extra: Partial<ConstructorParameters<typeof LowerThirdsClient>[0]> = {}) {
-	const client = new LowerThirdsClient({ host: '127.0.0.1', port: srv.port, name, reconnectDelayMs: 50, ...extra })
+function setup(srv: MockServer, name = 'Main Desk', extra: Partial<ConstructorParameters<typeof LifeCGClient>[0]> = {}) {
+	const client = new LifeCGClient({ host: '127.0.0.1', port: srv.port, name, reconnectDelayMs: 50, ...extra })
 	const statuses: ClientStatus[] = []
 	const logs: Logged[] = []
-	const states: LowerThirdsState[] = []
+	const states: LifeCGState[] = []
 	client.on('status', (s) => statuses.push(s))
 	client.on('log', (level, message) => logs.push({ level, message }))
 	client.on('state', (s) => states.push(s))
@@ -41,9 +41,9 @@ function setup(srv: MockServer, name = 'Main Desk', extra: Partial<ConstructorPa
 	return { client, statuses, logs, states, actions, run }
 }
 
-describe('LowerThirdsClient against the mock server', () => {
+describe('LifeCGClient against the mock server', () => {
 	let srv: MockServer
-	const clients: LowerThirdsClient[] = []
+	const clients: LifeCGClient[] = []
 
 	beforeEach(async () => {
 		srv = await startMockServer({ port: 0 })

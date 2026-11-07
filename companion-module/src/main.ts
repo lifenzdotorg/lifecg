@@ -4,13 +4,13 @@ import { UpgradeScripts } from './upgrades.js'
 import { buildActionDefinitions, type ActionsSchema } from './actions.js'
 import { buildFeedbackDefinitions, type FeedbacksSchema } from './feedbacks.js'
 import { buildPresets } from './presets.js'
-import { LowerThirdsClient, type ClientStatus } from './client.js'
+import { LifeCGClient, type ClientStatus } from './client.js'
 import {
 	EMPTY_STATE,
 	recentSignature,
 	stateToVariables,
 	variableDefinitions,
-	type LowerThirdsState,
+	type LifeCGState,
 	type VariableValues,
 } from './protocol.js'
 
@@ -31,10 +31,10 @@ const STATUS_MAP: Record<ClientStatus, InstanceStatus> = {
 	disconnected: InstanceStatus.Disconnected,
 }
 
-export default class LowerThirdsInstance extends InstanceBase<ModuleSchema> {
+export default class LifeCGInstance extends InstanceBase<ModuleSchema> {
 	config!: ModuleConfig
-	#client: LowerThirdsClient | null = null
-	#state: LowerThirdsState = EMPTY_STATE
+	#client: LifeCGClient | null = null
+	#state: LifeCGState = EMPTY_STATE
 	#recentSig = ''
 	#lastLabel = ''
 
@@ -78,14 +78,14 @@ export default class LowerThirdsInstance extends InstanceBase<ModuleSchema> {
 		const host = String(this.config.host ?? '').trim()
 		const port = Math.round(Number(this.config.port ?? DEFAULT_PORT))
 		if (!host || !Number.isFinite(port) || port < 1 || port > 65535) {
-			this.updateStatus(InstanceStatus.BadConfig, 'Set the host and port of LowerThirds.app')
+			this.updateStatus(InstanceStatus.BadConfig, 'Set the host and port of LifeCG.app')
 			return
 		}
 
-		const client = new LowerThirdsClient({ host, port, name: this.label })
+		const client = new LifeCGClient({ host, port, name: this.label })
 		client.on('status', (status, message) => this.updateStatus(STATUS_MAP[status], message))
 		client.on('state', (state) => this.#applyState(state, false))
-		client.on('serverError', (message) => this.log('warn', `LowerThirds.app: ${message}`))
+		client.on('serverError', (message) => this.log('warn', `LifeCG.app: ${message}`))
 		client.on('log', (level, message) => this.log(level, message))
 		this.#client = client
 		client.start()
@@ -98,7 +98,7 @@ export default class LowerThirdsInstance extends InstanceBase<ModuleSchema> {
 		this.#client = null
 	}
 
-	#applyState(state: LowerThirdsState, force: boolean): void {
+	#applyState(state: LifeCGState, force: boolean): void {
 		this.#state = state
 		const sig = recentSignature(state)
 		if (force || sig !== this.#recentSig) {

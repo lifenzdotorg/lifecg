@@ -6,7 +6,7 @@ import {
 	recentChoices,
 	showTitleChoices,
 	type ClientMessage,
-	type LowerThirdsState,
+	type LifeCGState,
 } from './protocol.js'
 
 export type ActionsSchema = {
@@ -20,7 +20,7 @@ export type ActionsSchema = {
 
 /** What the action callbacks need from the module instance (kept small so it can be faked in tests). */
 export interface ActionContext {
-	getState(): LowerThirdsState
+	getState(): LifeCGState
 	send(msg: ClientMessage): boolean
 	log(level: 'debug' | 'info' | 'warn' | 'error', message: string): void
 }
@@ -137,7 +137,7 @@ export function buildActionDefinitions(ctx: ActionContext): CompanionActionDefin
 
 		clear_recent: {
 			name: 'Clear Recent Titles',
-			description: 'Empties the shared Recent list in LowerThirds.app (affects every Companion connected to it).',
+			description: 'Empties the shared Recent list in LifeCG.app (affects every Companion connected to it).',
 			options: [],
 			callback: () => {
 				ctx.send({ type: 'clearRecent' })

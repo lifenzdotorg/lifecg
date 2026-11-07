@@ -1,6 +1,6 @@
-# LowerThirds control protocol (v1)
+# LifeCG control protocol (v1)
 
-The macOS app (**LowerThirds.app**) is the single source of truth. Any number of
+The macOS app (**LifeCG.app**) is the single source of truth. Any number of
 Companion instances (or other clients) connect to it; every state change is
 broadcast to all of them, so the Recent Titles list is shared across instances.
 

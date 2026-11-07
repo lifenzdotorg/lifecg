@@ -1,7 +1,7 @@
 {
-	"name": "lifenz-lowerthirds",
+	"name": "lifenz-lifecg",
 	"version": "1.0.0",
-	"description": "Bitfocus Companion module for the LIFE LowerThirds.app (speaker-title lower thirds over Syphon)",
+	"description": "Bitfocus Companion module for the LIFE LifeCG.app (speaker-title lower thirds over Syphon)",
 	"main": "dist/main.js",
 	"type": "module",
 	"private": true,
@@ -15,7 +15,7 @@
 	"license": "MIT",
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/lifenzdotorg/lowerthirds.git"
+		"url": "git+https://github.com/lifenzdotorg/lifecg.git"
 	},
 	"engines": {
 		"node": "^22.20"

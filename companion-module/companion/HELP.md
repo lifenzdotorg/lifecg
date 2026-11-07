@@ -1,12 +1,12 @@
-## LIFE Lower Thirds
+## LIFE LifeCG
 
-Controls **LowerThirds.app**, the macOS app that renders speaker-title lower thirds and sends them to ProPresenter 7 over Syphon. The app holds the state, including the shared Recent Titles list. Any number of Companion installs can connect to it at once, and all of them see the same titles and on-air state.
+Controls **LifeCG.app**, the macOS app that renders speaker-title lower thirds and sends them to ProPresenter 7 over Syphon. The app holds the state, including the shared Recent Titles list. Any number of Companion installs can connect to it at once, and all of them see the same titles and on-air state.
 
 ### Configuration
 
 | Field | Default   | Notes                                                                     |
 | ----- | --------- | ------------------------------------------------------------------------- |
-| Host  | 127.0.0.1 | IP or hostname of the Mac running LowerThirds.app                         |
+| Host  | 127.0.0.1 | IP or hostname of the Mac running LifeCG.app                         |
 | Port  | 9123      | As set in the app's settings                                              |
 
 The module connects to `ws://host:port/ws` and reconnects automatically if the connection drops. The connection shows **Connecting**, **OK**, **Connection failure** (cannot reach the app) or **Disconnected** (the link dropped and the module is reconnecting).

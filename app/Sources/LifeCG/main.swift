@@ -15,7 +15,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
         window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1060, height: 780),
                           styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
-        window.title = "LowerThirds"
+        window.title = "LifeCG"
         window.contentView = NSHostingView(rootView: MainView(model: model))
         window.setFrameAutosaveName("MainWindow")
         window.isReleasedWhenClosed = false
@@ -24,12 +24,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         window.makeKeyAndOrderFront(nil)
 
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        statusItem.button?.image = NSImage(systemSymbolName: "captions.bubble", accessibilityDescription: "LowerThirds")
+        statusItem.button?.image = NSImage(systemSymbolName: "captions.bubble", accessibilityDescription: "LifeCG")
         let menu = NSMenu()
-        menu.addItem(withTitle: "Open LowerThirds", action: #selector(showWindow), keyEquivalent: "")
+        menu.addItem(withTitle: "Open LifeCG", action: #selector(showWindow), keyEquivalent: "")
         menu.addItem(withTitle: "Hide Title", action: #selector(hideTitle), keyEquivalent: "")
         menu.addItem(.separator())
-        menu.addItem(withTitle: "Quit LowerThirds", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        menu.addItem(withTitle: "Quit LifeCG", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         statusItem.menu = menu
 
         NSApp.activate(ignoringOtherApps: true)
@@ -51,11 +51,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let main = NSMenu()
         let appItem = NSMenuItem(); main.addItem(appItem)
         let appMenu = NSMenu()
-        appMenu.addItem(withTitle: "About LowerThirds", action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
+        appMenu.addItem(withTitle: "About LifeCG", action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
         appMenu.addItem(.separator())
-        appMenu.addItem(withTitle: "Hide LowerThirds", action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
+        appMenu.addItem(withTitle: "Hide LifeCG", action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
         appMenu.addItem(.separator())
-        appMenu.addItem(withTitle: "Quit LowerThirds", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        appMenu.addItem(withTitle: "Quit LifeCG", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         appItem.submenu = appMenu
 
         let editItem = NSMenuItem(); main.addItem(editItem)

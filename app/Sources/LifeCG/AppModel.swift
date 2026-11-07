@@ -2,14 +2,14 @@ import AppKit
 import Combine
 import Foundation
 import ServiceManagement
-#if canImport(LowerThirdsCore)
-import LowerThirdsCore
+#if canImport(LifeCGCore)
+import LifeCGCore
 #endif
 
 /// Persisted app settings.
 struct AppSettings: Codable, Equatable {
     var port: UInt16 = 9123
-    var syphonName = "LowerThirds"
+    var syphonName = "LifeCG"
     var offsetX: Double = 0
     var offsetY: Double = 0
     var showDockIcon = true

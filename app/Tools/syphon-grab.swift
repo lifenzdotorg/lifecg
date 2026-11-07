@@ -1,5 +1,5 @@
 // syphon-grab: connect to a running Syphon server and save one frame as PNG.
-// Independent check that LowerThirds.app is publishing what we expect.
+// Independent check that LifeCG.app is publishing what we expect.
 //   syphon-grab <server name> <out.png>
 import Foundation
 import Metal

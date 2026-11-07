@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
-#if canImport(LowerThirdsCore)
-import LowerThirdsCore
+#if canImport(LifeCGCore)
+import LifeCGCore
 #endif
 
 struct MainView: View {

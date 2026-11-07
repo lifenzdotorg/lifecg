@@ -1,5 +1,5 @@
 /**
- * WebSocket client for LowerThirds.app. Independent of Companion so it can be
+ * WebSocket client for LifeCG.app. Independent of Companion so it can be
  * unit tested against the mock server.
  */
 import { EventEmitter } from 'node:events'
@@ -9,7 +9,7 @@ import {
 	PROTOCOL_VERSION,
 	parseServerMessage,
 	type ClientMessage,
-	type LowerThirdsState,
+	type LifeCGState,
 } from './protocol.js'
 
 export type ClientStatus = 'connecting' | 'ok' | 'connection_failure' | 'disconnected'
@@ -30,15 +30,15 @@ export interface ClientOptions {
 
 export interface ClientEvents {
 	status: [status: ClientStatus, message: string | null]
-	state: [state: LowerThirdsState]
+	state: [state: LifeCGState]
 	serverError: [message: string]
 	log: [level: 'debug' | 'info' | 'warn' | 'error', message: string]
 }
 
-export class LowerThirdsClient extends EventEmitter<ClientEvents> {
+export class LifeCGClient extends EventEmitter<ClientEvents> {
 	#opts: Required<ClientOptions>
 	#ws: WebSocket | null = null
-	#state: LowerThirdsState = EMPTY_STATE
+	#state: LifeCGState = EMPTY_STATE
 	#status: ClientStatus = 'disconnected'
 	#connected = false
 	#stopped = true
@@ -58,7 +58,7 @@ export class LowerThirdsClient extends EventEmitter<ClientEvents> {
 		}
 	}
 
-	get state(): LowerThirdsState {
+	get state(): LifeCGState {
 		return this.#state
 	}
 
@@ -101,7 +101,7 @@ export class LowerThirdsClient extends EventEmitter<ClientEvents> {
 	send(msg: ClientMessage): boolean {
 		const ws = this.#ws
 		if (!ws || ws.readyState !== WebSocket.OPEN) {
-			this.emit('log', 'warn', `Not connected to LowerThirds; dropped "${msg.type}"`)
+			this.emit('log', 'warn', `Not connected to LifeCG; dropped "${msg.type}"`)
 			return false
 		}
 		ws.send(JSON.stringify(msg))
@@ -210,7 +210,7 @@ export class LowerThirdsClient extends EventEmitter<ClientEvents> {
 		this.#failures++
 		const secs = Math.round(delay / 100) / 10
 		if (wasConnected) {
-			this.emit('log', 'warn', `Disconnected from LowerThirds (${reason}); reconnecting in ${secs}s`)
+			this.emit('log', 'warn', `Disconnected from LifeCG (${reason}); reconnecting in ${secs}s`)
 			this.#setStatus('disconnected', `${reason} — retrying in ${secs}s`)
 		} else {
 			this.emit('log', 'debug', `Connection failed (${reason}); retrying in ${secs}s`)

@@ -12,10 +12,10 @@ export function GetConfigFields(): SomeCompanionConfigField[] {
 		{
 			type: 'static-text',
 			id: 'info',
-			label: 'LowerThirds.app',
+			label: 'LifeCG.app',
 			width: 12,
 			value:
-				'Connects to LowerThirds.app over WebSocket (ws://host:port/ws). Use 127.0.0.1 when Companion runs on the graphics Mac, otherwise that Mac\'s IP address or hostname. The port is shown in the app\'s settings (default 9123).',
+				'Connects to LifeCG.app over WebSocket (ws://host:port/ws). Use 127.0.0.1 when Companion runs on the graphics Mac, otherwise that Mac\'s IP address or hostname. The port is shown in the app\'s settings (default 9123).',
 		},
 		{
 			type: 'textinput',

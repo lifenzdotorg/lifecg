@@ -1,5 +1,5 @@
 /**
- * Types and pure helpers for the LowerThirds control protocol v1.
+ * Types and pure helpers for the LifeCG control protocol v1.
  * See docs/PROTOCOL.md in the repository. This file must not import
  * @companion-module/base at runtime so it can be unit tested in isolation.
  */
@@ -18,7 +18,7 @@ export interface RecentEntry extends TitleEntry {
 	lastUsed?: string
 }
 
-export interface LowerThirdsState {
+export interface LifeCGState {
 	protocol: number
 	onAir: boolean
 	current: TitleEntry | null
@@ -38,11 +38,11 @@ export type ClientMessage =
 	| { type: 'ping' }
 
 export type ServerMessage =
-	| ({ type: 'state' } & LowerThirdsState)
+	| ({ type: 'state' } & LifeCGState)
 	| { type: 'pong' }
 	| { type: 'error'; message: string }
 
-export const EMPTY_STATE: LowerThirdsState = {
+export const EMPTY_STATE: LifeCGState = {
 	protocol: PROTOCOL_VERSION,
 	onAir: false,
 	current: null,
@@ -64,7 +64,7 @@ function normaliseEntry(raw: unknown): TitleEntry | null {
 }
 
 /** Defensive normalisation of an incoming `state` message. */
-export function normaliseState(raw: Record<string, unknown>): LowerThirdsState {
+export function normaliseState(raw: Record<string, unknown>): LifeCGState {
 	const recentRaw = Array.isArray(raw.recent) ? raw.recent : []
 	const recent: RecentEntry[] = []
 	for (const item of recentRaw) {
@@ -121,28 +121,28 @@ export interface Choice {
 	label: string
 }
 
-export function recentChoices(state: LowerThirdsState): Choice[] {
+export function recentChoices(state: LifeCGState): Choice[] {
 	return state.recent.map((e) => ({ id: e.id, label: entryLabel(e) }))
 }
 
 /** Choices for the "Show Title" dropdown: custom first, then Recent. */
-export function showTitleChoices(state: LowerThirdsState): Choice[] {
+export function showTitleChoices(state: LifeCGState): Choice[] {
 	return [{ id: CUSTOM_CHOICE_ID, label: '— Type a new title —' }, ...recentChoices(state)]
 }
 
 /** A cheap signature so we only rebuild action/feedback definitions when the dropdowns would change. */
-export function recentSignature(state: LowerThirdsState): string {
+export function recentSignature(state: LifeCGState): string {
 	return JSON.stringify(state.recent.map((e) => [e.id, e.title, e.designation]))
 }
 
-export function findRecent(state: LowerThirdsState, id: string): RecentEntry | undefined {
+export function findRecent(state: LifeCGState, id: string): RecentEntry | undefined {
 	return state.recent.find((e) => e.id === id)
 }
 
 export type VariableValues = Record<string, string | number | boolean>
 
 /** Map a state object to Companion variable values. */
-export function stateToVariables(state: LowerThirdsState): VariableValues {
+export function stateToVariables(state: LifeCGState): VariableValues {
 	const cur = state.onAir ? state.current : null
 	const values: VariableValues = {
 		on_air: state.onAir,
@@ -180,7 +180,7 @@ export function variableDefinitions(): Record<string, { name: string }> {
 }
 
 /** Does the on-air title match a free-text title (and optional designation)? Case-insensitive, trimmed. */
-export function currentMatchesText(state: LowerThirdsState, title: string, designation: string): boolean {
+export function currentMatchesText(state: LifeCGState, title: string, designation: string): boolean {
 	if (!state.onAir || !state.current) return false
 	const norm = (s: string) => s.trim().toLowerCase()
 	const t = norm(title)

@@ -3,10 +3,10 @@
 <plist version="1.0">
 <dict>
 	<key>CFBundleDevelopmentRegion</key><string>en</string>
-	<key>CFBundleExecutable</key><string>LowerThirds</string>
-	<key>CFBundleIdentifier</key><string>org.lifenz.lowerthirds</string>
-	<key>CFBundleName</key><string>LowerThirds</string>
-	<key>CFBundleDisplayName</key><string>LowerThirds</string>
+	<key>CFBundleExecutable</key><string>LifeCG</string>
+	<key>CFBundleIdentifier</key><string>org.lifenz.lifecg</string>
+	<key>CFBundleName</key><string>LifeCG</string>
+	<key>CFBundleDisplayName</key><string>LifeCG</string>
 	<key>CFBundlePackageType</key><string>APPL</string>
 	<key>CFBundleShortVersionString</key><string>__VERSION__</string>
 	<key>CFBundleVersion</key><string>__BUILD__</string>
@@ -15,7 +15,7 @@
 	<key>LSApplicationCategoryType</key><string>public.app-category.video</string>
 	<key>NSHighResolutionCapable</key><true/>
 	<key>NSPrincipalClass</key><string>NSApplication</string>
-	<key>NSLocalNetworkUsageDescription</key><string>LowerThirds listens on the local network so Bitfocus Companion can control the titles.</string>
+	<key>NSLocalNetworkUsageDescription</key><string>LifeCG listens on the local network so Bitfocus Companion can control the titles.</string>
 	<key>NSHumanReadableCopyright</key><string>© LIFE. MIT licensed.</string>
 </dict>
 </plist>

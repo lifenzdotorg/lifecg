@@ -2,10 +2,10 @@
 import PackageDescription
 
 let package = Package(
-    name: "LowerThirds",
+    name: "LifeCG",
     platforms: [.macOS(.v13)],
     products: [
-        .executable(name: "LowerThirds", targets: ["LowerThirds"]),
+        .executable(name: "LifeCG", targets: ["LifeCG"]),
         .executable(name: "lt-render", targets: ["lt-render"]),
     ],
     dependencies: [
@@ -14,20 +14,20 @@ let package = Package(
     targets: [
         // Platform-neutral core: state, recent titles, rendering, control server.
         .target(
-            name: "LowerThirdsCore",
-            path: "Sources/LowerThirdsCore",
+            name: "LifeCGCore",
+            path: "Sources/LifeCGCore",
             resources: [.copy("Resources/plus-layer.png"), .copy("Resources/gradient-layer.png")]
         ),
         // The menu-bar app: Syphon output + operator window.
         .executableTarget(
-            name: "LowerThirds",
-            dependencies: ["LowerThirdsCore", .product(name: "Syphon", package: "Syphon")],
-            path: "Sources/LowerThirds"
+            name: "LifeCG",
+            dependencies: ["LifeCGCore", .product(name: "Syphon", package: "Syphon")],
+            path: "Sources/LifeCG"
         ),
         // CLI: render stills to PNG and run self-tests (no GUI needed).
         .executableTarget(
             name: "lt-render",
-            dependencies: ["LowerThirdsCore"],
+            dependencies: ["LifeCGCore"],
             path: "Sources/lt-render"
         ),
     ],

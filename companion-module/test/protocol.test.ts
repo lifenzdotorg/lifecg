@@ -9,13 +9,13 @@ import {
 	showTitleChoices,
 	stateToVariables,
 	variableDefinitions,
-	type LowerThirdsState,
+	type LifeCGState,
 } from '../src/protocol.js'
 
 const luke = { id: 'a1b2c3d4', title: 'Ps Luke de Jong', designation: 'Lead Pastor' }
 const anna = { id: 'deadbeef', title: 'Anna Smith', designation: '' }
 
-const sample: LowerThirdsState = {
+const sample: LifeCGState = {
 	protocol: 1,
 	onAir: true,
 	current: luke,

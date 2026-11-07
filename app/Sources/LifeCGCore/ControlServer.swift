@@ -111,7 +111,7 @@ public final class ControlServer {
         case ("OPTIONS", _): c.respond(204, "")
         case ("GET", "/api/state"): ok()
         case ("GET", "/"):
-            c.respond(200, "LowerThirds is running. See /api/state", contentType: "text/plain")
+            c.respond(200, "LifeCG is running. See /api/state", contentType: "text/plain")
         case ("POST", "/api/show"):
             do { try store.show(title: body["title"] as? String ?? "", designation: body["designation"] as? String ?? ""); ok() }
             catch { bad(error.localizedDescription) }

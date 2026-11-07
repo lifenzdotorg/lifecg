@@ -1,6 +1,6 @@
 import Foundation
-#if canImport(LowerThirdsCore)
-import LowerThirdsCore
+#if canImport(LifeCGCore)
+import LifeCGCore
 #endif
 
 // Usage:

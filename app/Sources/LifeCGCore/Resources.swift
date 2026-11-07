@@ -10,7 +10,7 @@ enum Resources {
         let exeDir = URL(fileURLWithPath: CommandLine.arguments[0]).resolvingSymlinksInPath().deletingLastPathComponent()
         candidates.append(exeDir.appendingPathComponent(file))
         candidates.append(exeDir.appendingPathComponent("Resources").appendingPathComponent(file))
-        // Source tree: Sources/LowerThirdsCore/Resources/<file>
+        // Source tree: Sources/LifeCGCore/Resources/<file>
         candidates.append(URL(fileURLWithPath: #filePath).deletingLastPathComponent()
             .appendingPathComponent("Resources").appendingPathComponent(file))
         return candidates.first { FileManager.default.fileExists(atPath: $0.path) }

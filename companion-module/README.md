@@ -1,9 +1,9 @@
-# companion-module-lifenz-lowerthirds
+# companion-module-lifenz-lifecg
 
-A Bitfocus Companion module for **LowerThirds.app**, LIFE's macOS app that renders speaker-title lower thirds and sends them to ProPresenter 7 over Syphon. The app holds the state, and the module speaks the WebSocket protocol in [`../docs/PROTOCOL.md`](../docs/PROTOCOL.md). Several Companion installs on different machines can connect to the same app at once. They share the on-air state and the Recent Titles list.
+A Bitfocus Companion module for **LifeCG.app**, LIFE's macOS app that renders speaker-title lower thirds and sends them to ProPresenter 7 over Syphon. The app holds the state, and the module speaks the WebSocket protocol in [`../docs/PROTOCOL.md`](../docs/PROTOCOL.md). Several Companion installs on different machines can connect to the same app at once. They share the on-air state and the Recent Titles list.
 
-- Module id: `lifenz-lowerthirds`. Manufacturer: LIFE. Product: Lower Thirds. License: MIT.
-- Repository: https://github.com/lifenzdotorg/lowerthirds
+- Module id: `lifenz-lifecg`. Manufacturer: LIFE. Product: LifeCG. License: MIT.
+- Repository: https://github.com/lifenzdotorg/lifecg
 - The user-facing docs (actions, feedbacks, variables, presets) are in [`companion/HELP.md`](companion/HELP.md). Companion shows that file under the module's "?" button.
 
 ## Compatibility
@@ -32,16 +32,16 @@ Sources:
 1. Build it, or use a `.tgz` someone has already built:
    ```sh
    npm ci
-   npm run package      # -> lifenz-lowerthirds-<version>.tgz
+   npm run package      # -> lifenz-lifecg-<version>.tgz
    ```
 2. In Companion, open **Modules** and click **Import module package**. Choose the `.tgz`.
-3. Open **Connections**, click **Add connection**, search for **LIFE Lower Thirds**, then set the Host and Port.
+3. Open **Connections**, click **Add connection**, search for **LIFE LifeCG**, then set the Host and Port.
 
 Repeat on every machine that runs Companion. To upgrade, import a newer `.tgz`; it shows up as a new version you can select.
 
 ### Option B: developer modules folder (for working on the module)
 
-1. Make a folder, e.g. `~/companion-dev-modules/`, and clone or copy this directory inside it as `lifenz-lowerthirds/`.
+1. Make a folder, e.g. `~/companion-dev-modules/`, and clone or copy this directory inside it as `lifenz-lifecg/`.
 2. In that copy run `npm ci && npm run build`. This creates `dist/main.js`, which `companion/manifest.json` points to.
 3. In the Companion launcher window, open the cog (Advanced settings), set **Developer modules path** to `~/companion-dev-modules/`, and restart Companion.
 4. Run `npm run dev` (tsc --watch). Companion reloads dev modules when files change.
@@ -50,7 +50,7 @@ Repeat on every machine that runs Companion. To upgrade, import a newer `.tgz`; 
 
 | Field | Default     | Notes |
 | ----- | ----------- | ----- |
-| Host  | `127.0.0.1` | The Mac running LowerThirds.app. Use its LAN IP or hostname when Companion runs on another machine. |
+| Host  | `127.0.0.1` | The Mac running LifeCG.app. Use its LAN IP or hostname when Companion runs on another machine. |
 | Port  | `9123`      | Must match the app's settings. |
 
 Connection behaviour:
@@ -69,8 +69,8 @@ You need Node **22.20 or newer**, because base 2.x requires it (`nvm use 22`). T
 npm ci
 npm run build          # tsc -> dist/
 npm test               # tsc typecheck (incl. tests) + vitest
-npm run package        # build + companion-module-build -> lifenz-lowerthirds-<version>.tgz
-npm run mock-server    # fake LowerThirds.app on ws://0.0.0.0:9123/ws (+ /api/* HTTP)
+npm run package        # build + companion-module-build -> lifenz-lifecg-<version>.tgz
+npm run mock-server    # fake LifeCG.app on ws://0.0.0.0:9123/ws (+ /api/* HTTP)
 ```
 
 Layout:
@@ -85,7 +85,7 @@ src/actions.ts            action definitions (rebuilt whenever the Recent list c
 src/feedbacks.ts          On Air / Title is On Air
 src/presets.ts            Control + Recent 1–10 presets
 src/config.ts, upgrades.ts
-test/mock-server.mjs      protocol-complete mock of LowerThirds.app
+test/mock-server.mjs      protocol-complete mock of LifeCG.app
 test/*.test.ts            vitest: protocol mapping + client/actions against the mock
 ```
 
@@ -94,7 +94,7 @@ Notes on API 2.x behaviour that shaped the code:
 - **Variables in text fields.** API 2.0 removed `parseVariablesInString`. A `textinput` with `useVariables: true` is parsed by Companion before the callback runs, so the action receives text that already has the variables filled in. Users can also switch any field to expression mode.
 - **Hiding fields.** Function-style `isVisible` is ignored in 2.x. The module uses `isVisibleExpression: "$(options:recent) == '__custom__'"`. In 2.x a field referenced from `isVisibleExpression` must have `disableAutoExpression: true`, and the Recent dropdown sets it.
 - **Live dropdowns.** Dropdown choices are built from the latest `state.recent`. When the list changes (the module compares ids, titles and designations), it calls `setActionDefinitions` and `setFeedbackDefinitions` again.
-- **Preset variables.** Preset text uses `$(lifenz-lowerthirds:recent_N_label)`. When a preset is placed on a button, Companion rewrites the prefix to the connection's real label (`replaceAllVariables` in `companion/lib/Instance/Definitions.ts`). The presets therefore work whatever the connection is called.
+- **Preset variables.** Preset text uses `$(lifenz-lifecg:recent_N_label)`. When a preset is placed on a button, Companion rewrites the prefix to the connection's real label (`replaceAllVariables` in `companion/lib/Instance/Definitions.ts`). The presets therefore work whatever the connection is called.
 
 ## Companion v5 notes
 

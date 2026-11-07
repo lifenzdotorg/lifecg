@@ -1,14 +1,14 @@
 {
 	"$schema": "../node_modules/@companion-module/base/assets/manifest.schema.json",
 	"type": "connection",
-	"id": "lifenz-lowerthirds",
-	"name": "lifenz-lowerthirds",
-	"shortname": "lowerthirds",
-	"description": "Control the LIFE LowerThirds.app (speaker-title lower thirds for ProPresenter via Syphon)",
+	"id": "lifenz-lifecg",
+	"name": "lifenz-lifecg",
+	"shortname": "lifecg",
+	"description": "Control the LIFE LifeCG.app (speaker-title lower thirds for ProPresenter via Syphon)",
 	"version": "0.0.0",
 	"license": "MIT",
-	"repository": "git+https://github.com/lifenzdotorg/lowerthirds.git",
-	"bugs": "https://github.com/lifenzdotorg/lowerthirds/issues",
+	"repository": "git+https://github.com/lifenzdotorg/lifecg.git",
+	"bugs": "https://github.com/lifenzdotorg/lifecg/issues",
 	"maintainers": [
 		{
 			"name": "LIFE"
@@ -22,6 +22,6 @@
 	},
 	"legacyIds": [],
 	"manufacturer": "LIFE",
-	"products": ["Lower Thirds"],
+	"products": ["LifeCG"],
 	"keywords": ["lower third", "lower thirds", "speaker title", "propresenter", "syphon", "graphics", "church"]
 }
