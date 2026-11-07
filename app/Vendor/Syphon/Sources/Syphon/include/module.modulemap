@@ -1,0 +1,14 @@
+// VENDOR ADDITION: SwiftPM module map replacing upstream's framework-style Syphon.modulemap.
+module Syphon {
+    umbrella header "Syphon/Syphon.h"
+
+    export *
+    module * {
+        export *
+    }
+
+    explicit module SyphonSubclassing {
+        header "Syphon/SyphonSubclassing.h"
+        export *
+    }
+}

@@ -1,0 +1,27 @@
+{
+	"$schema": "../node_modules/@companion-module/base/assets/manifest.schema.json",
+	"type": "connection",
+	"id": "lifenz-lowerthirds",
+	"name": "lifenz-lowerthirds",
+	"shortname": "lowerthirds",
+	"description": "Control the LIFE LowerThirds.app (speaker-title lower thirds for ProPresenter via Syphon)",
+	"version": "0.0.0",
+	"license": "MIT",
+	"repository": "git+https://github.com/lifenzdotorg/lowerthirds.git",
+	"bugs": "https://github.com/lifenzdotorg/lowerthirds/issues",
+	"maintainers": [
+		{
+			"name": "LIFE"
+		}
+	],
+	"runtime": {
+		"type": "node22",
+		"api": "nodejs-ipc",
+		"apiVersion": "0.0.0",
+		"entrypoint": "../dist/main.js"
+	},
+	"legacyIds": [],
+	"manufacturer": "LIFE",
+	"products": ["Lower Thirds"],
+	"keywords": ["lower third", "lower thirds", "speaker title", "propresenter", "syphon", "graphics", "church"]
+}
