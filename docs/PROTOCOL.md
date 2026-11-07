@@ -15,8 +15,8 @@ All messages are UTF-8 JSON text frames with a `type` field.
 | type | fields | effect |
 |---|---|---|
 | `hello` | `client` (string, e.g. `"companion"`), `name` (instance label), `protocol` (number, `1`) | Identify. App replies with `state`. |
-| `show` | `title` (string, required, non-empty after trim), `designation` (string, optional) | Put this title on air. If something is already on air, it animates out and the new one animates in. Adds/bumps the entry in Recent. |
-| `showRecent` | `id` (string) **or** `index` (number, 0 = most recent) | Show an entry from the Recent list. |
+| `show` | `title` (string, required, non-empty after trim), `designation` (string, optional), `autoClearSeconds` (number, 0.1–600, optional) | Put this title on air. If something is already on air, it animates out and the new one animates in. Adds/bumps the entry in Recent. With `autoClearSeconds` the app hides it after that many seconds. |
+| `showRecent` | `id` (string) **or** `index` (number, 0 = most recent), `autoClearSeconds` (optional) | Show an entry from the Recent list. |
 | `hide` | — | Animate the title off air. |
 | `toggle` | — | If on air → hide. If off air → re-show the last shown title (if any). |
 | `removeRecent` | `id` | Remove one entry from Recent. |
@@ -38,12 +38,16 @@ Unknown types → `{"type":"error","message":"..."}`. Invalid `show` (empty titl
   "last":    { "id": "a1b2c3d4", "title": "Ps Luke de Jong", "designation": "Lead Pastor" },
   "recent": [
     { "id": "a1b2c3d4", "title": "Ps Luke de Jong", "designation": "Lead Pastor", "lastUsed": "2026-11-08T09:30:00Z" }
-  ]
+  ],
+  "autoClearAt": null
 }
 ```
 
 - `current` is `null` when off air. `last` is the most recently shown title (used by `toggle`), or `null`.
 - `designation` is always a string (`""` when absent). The graphic only draws the designation bar when it is non-empty.
+- `autoClearAt` is an ISO-8601 time when the current title will hide itself, or `null`.
+  The timer runs in the app (so it still fires if the client disconnects). Any later
+  `show`, `showRecent`, `hide` or `toggle` from any client cancels it.
 - `recent` holds at most **20** entries, most recently used first.
 - `id` is stable for a given title+designation: first 8 hex chars of SHA-256 of
   `lowercase(trim(title)) + "\n" + lowercase(trim(designation))`. Showing the same
@@ -54,7 +58,7 @@ Unknown types → `{"type":"error","message":"..."}`. Invalid `show` (empty titl
 | method & path | body | result |
 |---|---|---|
 | `GET /api/state` | — | the `state` object above |
-| `POST /api/show` | `{"title":"…","designation":"…"}` | 200 + state |
+| `POST /api/show` | `{"title":"…","designation":"…","autoClearSeconds":8}` (last two optional) | 200 + state |
 | `POST /api/hide` | — | 200 + state |
 | `POST /api/toggle` | — | 200 + state |
 | `POST /api/recent/clear` | — | 200 + state |

@@ -104,6 +104,7 @@ public final class ControlServer {
         }
 
         let body = (try? JSONSerialization.jsonObject(with: req.body)) as? [String: Any] ?? [:]
+        let autoClear = (body["autoClearSeconds"] as? NSNumber)?.doubleValue
         func ok() { c.respond(200, Self.json(store.state.jsonObject())) }
         func bad(_ msg: String, _ code: Int = 400) { c.respond(code, Self.json(["type": "error", "message": msg])) }
 
@@ -113,7 +114,7 @@ public final class ControlServer {
         case ("GET", "/"):
             c.respond(200, "LifeCG is running. See /api/state", contentType: "text/plain")
         case ("POST", "/api/show"):
-            do { try store.show(title: body["title"] as? String ?? "", designation: body["designation"] as? String ?? ""); ok() }
+            do { try store.show(title: body["title"] as? String ?? "", designation: body["designation"] as? String ?? "", autoClearAfter: autoClear); ok() }
             catch { bad(error.localizedDescription) }
         case ("POST", "/api/hide"): store.hide(); ok()
         case ("POST", "/api/toggle"): store.toggle(); ok()
@@ -145,9 +146,11 @@ public final class ControlServer {
                 updateClients()
                 c.sendText(Self.json(store.state.jsonObject()))
             case "show":
-                try store.show(title: obj["title"] as? String ?? "", designation: obj["designation"] as? String ?? "")
+                try store.show(title: obj["title"] as? String ?? "", designation: obj["designation"] as? String ?? "",
+                               autoClearAfter: (obj["autoClearSeconds"] as? NSNumber)?.doubleValue)
             case "showRecent":
-                try store.showRecent(id: obj["id"] as? String, index: (obj["index"] as? NSNumber)?.intValue)
+                try store.showRecent(id: obj["id"] as? String, index: (obj["index"] as? NSNumber)?.intValue,
+                                     autoClearAfter: (obj["autoClearSeconds"] as? NSNumber)?.doubleValue)
             case "hide": store.hide()
             case "toggle": store.toggle()
             case "removeRecent": store.removeRecent(id: obj["id"] as? String ?? "")

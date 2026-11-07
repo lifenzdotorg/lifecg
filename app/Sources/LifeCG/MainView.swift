@@ -57,6 +57,10 @@ struct MainView: View {
             if let c = model.state.current {
                 Text(c.designation.isEmpty ? c.title : "\(c.title) — \(c.designation)")
                     .font(.headline).lineLimit(1)
+                if let at = model.state.autoClearAt {
+                    Label("auto-clear \(at.formatted(date: .omitted, time: .standard))", systemImage: "timer")
+                        .font(.caption).foregroundColor(.orange)
+                }
             }
             Spacer()
             Label(model.syphonHasClients ? "Syphon: receiving" : "Syphon: no receivers",
@@ -209,6 +213,16 @@ struct SettingsView: View {
                 Stepper("Nudge X: \(Int(model.settings.offsetX)) px", value: $model.settings.offsetX, in: -400...400, step: 2)
                 Stepper("Nudge Y: \(Int(model.settings.offsetY)) px", value: $model.settings.offsetY, in: -400...400, step: 2)
                 Button("Reset") { model.settings.offsetX = 0; model.settings.offsetY = 0 }
+            }
+            HStack(spacing: 24) {
+                Picker("Animate on", selection: $model.settings.transitionIn) {
+                    ForEach(Transition.allCases, id: \.self) { Text($0.label).tag($0) }
+                }
+                .frame(width: 280)
+                Picker("Animate off", selection: $model.settings.transitionOut) {
+                    ForEach(Transition.allCases, id: \.self) { Text($0.label).tag($0) }
+                }
+                .frame(width: 280)
             }
             Toggle("Launch at login", isOn: Binding(get: { model.launchAtLogin }, set: { model.setLaunchAtLogin($0) }))
             Toggle("Show Dock icon (menu bar icon is always shown)", isOn: $model.settings.showDockIcon)

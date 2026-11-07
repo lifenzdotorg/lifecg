@@ -28,9 +28,9 @@ export interface LifeCGState {
 
 export type ClientMessage =
 	| { type: 'hello'; client: string; name: string; protocol: number }
-	| { type: 'show'; title: string; designation?: string }
-	| { type: 'showRecent'; id: string }
-	| { type: 'showRecent'; index: number }
+	| { type: 'show'; title: string; designation?: string; autoClearSeconds?: number }
+	| { type: 'showRecent'; id: string; autoClearSeconds?: number }
+	| { type: 'showRecent'; index: number; autoClearSeconds?: number }
 	| { type: 'hide' }
 	| { type: 'toggle' }
 	| { type: 'removeRecent'; id: string }

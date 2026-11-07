@@ -13,8 +13,8 @@ The module connects to `ws://host:port/ws` and reconnects automatically if the c
 
 ### Actions
 
-- **Show Title**: pick an entry from **Recent Titles**, or choose _"— Type a new title —"_ and enter a **Title** and an optional **Designation**. Both text fields accept variables, e.g. `$(internal:custom_speaker)`. The Recent list in the dropdown updates live.
-- **Show Recent Title by position**: 1 is the most recent title. Nothing happens if that position is empty.
+- **Show Title**: pick an entry from **Recent Titles**, or choose _"— Type a new title —"_ and enter a **Title** and an optional **Designation**. Both text fields accept variables, e.g. `$(internal:custom_speaker)`. The Recent list in the dropdown updates live. Tick **Auto clear after 8 seconds** to have the title hide itself; a Hide or a new title from any button cancels the pending clear.
+- **Show Recent Title by position** (also has the auto-clear tickbox): 1 is the most recent title. Nothing happens if that position is empty.
 - **Hide Title**
 - **Toggle Title**: hides the title if it's on air, otherwise shows the last title again.
 - **Clear Recent Titles**: empties the shared list on every connected Companion.

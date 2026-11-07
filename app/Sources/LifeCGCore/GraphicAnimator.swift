@@ -5,8 +5,11 @@ import QuartzCore
 /// Renders at 60 fps while animating; when static it re-emits the last frame
 /// every `keepAliveInterval` so Syphon clients that join late still get a picture.
 public final class GraphicAnimator {
-    public var inDuration: Double = 0.9
-    public var outDuration: Double = 0.55
+    /// How the title animates on and off; chosen independently.
+    public var inTransition: Transition = .slideBoxFadeText
+    public var outTransition: Transition = .slideBoxFadeText
+    /// Off-animations play faster than on-animations.
+    public var outSpeedFactor: Double = 0.6
     public var keepAliveInterval: Double = 0.5
 
     /// Called on the main queue after each frame is rendered into `renderer`.
@@ -67,12 +70,14 @@ public final class GraphicAnimator {
         let dt = min(now - lastTick, 0.1)
         lastTick = now
         if direction > 0 {
-            progress = min(1, progress + dt / inDuration)
+            let d = inTransition.duration
+            progress = d > 0 ? min(1, progress + dt / d) : 1
             if progress >= 1 { direction = 0 }
             draw()
         } else if direction < 0 {
-            // Swapping titles: go out faster.
-            progress = max(0, progress - dt / (pending != nil ? outDuration * 0.7 : outDuration))
+            // Swapping titles: go out faster still.
+            let d = outTransition.duration * outSpeedFactor * (pending != nil ? 0.7 : 1)
+            progress = d > 0 ? max(0, progress - dt / d) : 0
             if progress <= 0 {
                 if let p = pending { displayed = p; pending = nil; direction = 1 }
                 else { displayed = nil; direction = 0 }
@@ -85,7 +90,8 @@ public final class GraphicAnimator {
     }
 
     private func draw() {
-        renderer.render(title: displayed?.title, designation: displayed?.designation ?? "", progress: progress)
+        renderer.render(title: displayed?.title, designation: displayed?.designation ?? "", progress: progress,
+                        transition: direction < 0 ? outTransition : inTransition)
         lastEmit = CACurrentMediaTime()
         onFrame?(renderer)
     }

@@ -137,6 +137,41 @@ describe('LifeCGClient against the mock server', () => {
 		await waitFor(() => t.client.state.recent.length === 0)
 	})
 
+	it('"Auto clear after 8 seconds" checkbox adds autoClearSeconds only when ticked', async () => {
+		const t = setup(srv)
+		clients.push(t.client)
+		t.client.start()
+		await waitFor(() => t.client.isConnected)
+
+		for (const id of ['show_title', 'show_recent_position'] as const) {
+			const def = t.actions()[id] as { options: { id: string }[] }
+			const opt = def.options.find((o) => o.id === 'autoClear')
+			expect(opt).toMatchObject({ type: 'checkbox', label: 'Auto clear after 8 seconds', default: false })
+		}
+
+		await t.run('show_title', { recent: CUSTOM_CHOICE_ID, title: 'Anna Smith', designation: '', autoClear: true })
+		await waitFor(() => srv.received.at(-1)?.type === 'show')
+		expect(srv.received.at(-1)).toEqual({ type: 'show', title: 'Anna Smith', designation: '', autoClearSeconds: 8 })
+		await waitFor(() => t.client.state.recent.length === 1)
+
+		const id = t.client.state.recent[0].id
+		await t.run('show_title', { recent: id, autoClear: true })
+		await waitFor(() => srv.received.at(-1)?.type === 'showRecent')
+		expect(srv.received.at(-1)).toEqual({ type: 'showRecent', id, autoClearSeconds: 8 })
+
+		await t.run('show_recent_position', { position: 1, autoClear: true })
+		await waitFor(() => srv.received.at(-1)?.index === 0)
+		expect(srv.received.at(-1)).toEqual({ type: 'showRecent', index: 0, autoClearSeconds: 8 })
+
+		// Unticked, or an older button saved before the option existed: no field sent
+		await t.run('show_title', { recent: CUSTOM_CHOICE_ID, title: 'Plain', designation: '', autoClear: false })
+		await waitFor(() => srv.received.at(-1)?.title === 'Plain')
+		expect(srv.received.at(-1)).toEqual({ type: 'show', title: 'Plain', designation: '' })
+		await t.run('show_recent_position', { position: 1 })
+		await waitFor(() => srv.received.at(-1)?.type === 'showRecent' && !('id' in srv.received.at(-1)!) )
+		expect(srv.received.at(-1)).toEqual({ type: 'showRecent', index: 0 })
+	})
+
 	it('falls back gracefully on a stale recent id and an empty custom title', async () => {
 		const t = setup(srv)
 		clients.push(t.client)

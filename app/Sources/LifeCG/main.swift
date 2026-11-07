@@ -24,7 +24,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         window.makeKeyAndOrderFront(nil)
 
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        statusItem.button?.image = NSImage(systemSymbolName: "captions.bubble", accessibilityDescription: "LifeCG")
+        statusItem.button?.image = Self.menuBarIcon()
         let menu = NSMenu()
         menu.addItem(withTitle: "Open LifeCG", action: #selector(showWindow), keyEquivalent: "")
         menu.addItem(withTitle: "Hide Title", action: #selector(hideTitle), keyEquivalent: "")
@@ -46,6 +46,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     @objc func hideTitle() { model.hide() }
+
+    /// Menu bar glyph matching the app icon: the outlined plus with the small solid plus.
+    /// Template image, so macOS tints it for light/dark menu bars.
+    static func menuBarIcon() -> NSImage {
+        let img = NSImage(size: NSSize(width: 18, height: 18), flipped: true) { _ in
+            func plus(_ r: NSRect, arm: CGFloat) -> NSBezierPath {
+                let a = r.width * arm
+                let p = NSBezierPath()
+                p.move(to: NSPoint(x: r.midX - a / 2, y: r.minY))
+                for (x, y) in [(r.midX + a / 2, r.minY), (r.midX + a / 2, r.midY - a / 2), (r.maxX, r.midY - a / 2),
+                               (r.maxX, r.midY + a / 2), (r.midX + a / 2, r.midY + a / 2), (r.midX + a / 2, r.maxY),
+                               (r.midX - a / 2, r.maxY), (r.midX - a / 2, r.midY + a / 2), (r.minX, r.midY + a / 2),
+                               (r.minX, r.midY - a / 2), (r.midX - a / 2, r.midY - a / 2)] {
+                    p.line(to: NSPoint(x: x, y: y))
+                }
+                p.close()
+                return p
+            }
+            NSColor.black.set()
+            let outline = plus(NSRect(x: 1.75, y: 4.75, width: 11.5, height: 11.5), arm: 0.44)
+            outline.lineWidth = 1.5
+            outline.stroke()
+            plus(NSRect(x: 12, y: 1, width: 5.5, height: 5.5), arm: 0.42).fill()
+            return true
+        }
+        img.isTemplate = true
+        img.accessibilityDescription = "LifeCG"
+        return img
+    }
 
     private func buildMenu() {
         let main = NSMenu()

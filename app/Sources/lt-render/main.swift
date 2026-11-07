@@ -34,6 +34,25 @@ if args.count >= 2, args[1] == "--selftest" {
     check(store.state.current?.title == "Speaker 23", "showRecent by index")
     check(TitleEntry.makeID(title: "A", designation: "b") == TitleEntry.makeID(title: " a ", designation: "B"), "stable ids")
 
+    // Auto-clear: fires after N seconds; a later show replaces the timer; hide cancels it.
+    func pump(_ t: Double) { RunLoop.main.run(until: Date().addingTimeInterval(t)) }
+    let ac = TitleStore(fileURL: nil)
+    check((try? ac.show(title: "X", designation: "", autoClearAfter: 0.2)) != nil && ac.state.autoClearAt != nil, "auto-clear scheduled")
+    check((try? ac.show(title: "X", designation: "", autoClearAfter: 0)) == nil, "auto-clear out of range rejected")
+    pump(0.4)
+    check(!ac.state.onAir && ac.state.autoClearAt == nil, "auto-clear hides after delay")
+    try! ac.show(title: "A", designation: "", autoClearAfter: 0.2)
+    try! ac.show(title: "B", designation: "")
+    pump(0.4)
+    check(ac.state.onAir && ac.state.current?.title == "B" && ac.state.autoClearAt == nil, "new show cancels pending auto-clear")
+    try! ac.show(title: "C", designation: "", autoClearAfter: 0.2)
+    ac.hide(); try! ac.show(title: "D", designation: "")
+    pump(0.4)
+    check(ac.state.onAir && ac.state.current?.title == "D", "hide cancels pending auto-clear")
+    try! ac.showRecent(index: 1, autoClearAfter: 0.2)
+    pump(0.4)
+    check(!ac.state.onAir, "showRecent supports auto-clear")
+
     let tmp = FileManager.default.temporaryDirectory.appendingPathComponent("lt-selftest-\(getpid()).json")
     let s1 = TitleStore(fileURL: tmp); try! s1.show(title: "Persisted", designation: "Yes")
     let s2 = TitleStore(fileURL: tmp)
@@ -51,6 +70,19 @@ if args.count >= 2, args[1] == "--selftest" {
     check(at(200, 200)[3] == 0, "top-left stays transparent")
     r.render(title: "Ps Luke de Jong", designation: "", progress: 1)
     check(at(1530, 1040)[2] < 60 || at(1530, 1040)[3] < 120, "no designation bar when empty")
+    func snapshot(_ t: Transition, _ p: Double) -> [UInt8] {
+        r.render(title: "Ps Luke de Jong", designation: "Lead Pastor", progress: p, transition: t)
+        return Array(UnsafeBufferPointer(start: px, count: r.bytesPerRow * 1080))
+    }
+    let reference = snapshot(.slideBoxFadeText, 1)
+    for t in Transition.allCases {
+        check(snapshot(t, 1) == reference, "transition \(t.rawValue): full frame matches")
+        let empty = snapshot(t, 0)
+        check(stride(from: 3, to: empty.count, by: 4).allSatisfy { empty[$0] == 0 }, "transition \(t.rawValue): empty at 0")
+    }
+    let mids = [Transition.slideBoxFadeText, .slideBoxAndText, .fade].map { snapshot($0, 0.5) }
+    check(Set(mids.map { $0.hashValue }).count == 3 && !mids.contains(reference), "transitions differ mid-way")
+    check(snapshot(.cut, 0.01) == reference, "cut shows the full frame immediately")
     print("fonts:", r.resolvedFontNames())
     print(failures == 0 ? "ALL PASS" : "\(failures) FAILED")
     exit(failures == 0 ? 0 : 1)
@@ -78,7 +110,8 @@ if args.count >= 3, args[1] == "--serve" {
 
 guard args.count >= 3 else { fail("usage: lt-render <out.png> <title> [designation] [progress]  |  lt-render --selftest") }
 let r = GraphicRenderer()
-r.render(title: args[2], designation: args.count > 3 ? args[3] : "", progress: args.count > 4 ? Double(args[4]) ?? 1 : 1)
+r.render(title: args[2], designation: args.count > 3 ? args[3] : "", progress: args.count > 4 ? Double(args[4]) ?? 1 : 1,
+         transition: args.count > 5 ? Transition(rawValue: args[5]) ?? .slideBoxFadeText : .slideBoxFadeText)
 guard let png = r.pngData() else { fail("encode failed") }
 try png.write(to: URL(fileURLWithPath: args[1]))
 print("wrote \(args[1])  fonts: \(r.resolvedFontNames())")

@@ -13,6 +13,23 @@ struct AppSettings: Codable, Equatable {
     var offsetX: Double = 0
     var offsetY: Double = 0
     var showDockIcon = true
+    var transitionIn: Transition = .slideBoxFadeText
+    var transitionOut: Transition = .slideBoxFadeText
+
+    init() {}
+
+    // Tolerant decoding: settings saved by an older build (missing newer keys) keep their values.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        let d = AppSettings()
+        port = try c.decodeIfPresent(UInt16.self, forKey: .port) ?? d.port
+        syphonName = try c.decodeIfPresent(String.self, forKey: .syphonName) ?? d.syphonName
+        offsetX = try c.decodeIfPresent(Double.self, forKey: .offsetX) ?? d.offsetX
+        offsetY = try c.decodeIfPresent(Double.self, forKey: .offsetY) ?? d.offsetY
+        showDockIcon = try c.decodeIfPresent(Bool.self, forKey: .showDockIcon) ?? d.showDockIcon
+        transitionIn = (try? c.decodeIfPresent(Transition.self, forKey: .transitionIn)) ?? d.transitionIn
+        transitionOut = (try? c.decodeIfPresent(Transition.self, forKey: .transitionOut)) ?? d.transitionOut
+    }
 
     static let key = "AppSettings.v1"
     static func load() -> AppSettings {
@@ -54,6 +71,8 @@ final class AppModel: ObservableObject {
         let r = GraphicRenderer(style: style)
         renderer = r
         animator = GraphicAnimator(renderer: r)
+        animator.inTransition = loaded.transitionIn
+        animator.outTransition = loaded.transitionOut
         if #available(macOS 13.0, *) { launchAtLogin = SMAppService.mainApp.status == .enabled }
 
         syphon = SyphonOutput(name: settings.syphonName)
@@ -138,6 +157,11 @@ final class AppModel: ObservableObject {
             renderer.style.offsetX = settings.offsetX
             renderer.style.offsetY = settings.offsetY
             animator.redraw()
+        }
+        if settings.transitionIn != old.transitionIn || settings.transitionOut != old.transitionOut {
+            animator.inTransition = settings.transitionIn
+            animator.outTransition = settings.transitionOut
+            addLog("Transitions: on = \(settings.transitionIn.label), off = \(settings.transitionOut.label)")
         }
         if settings.showDockIcon != old.showDockIcon {
             NSApp.setActivationPolicy(settings.showDockIcon ? .regular : .accessory)

@@ -56,7 +56,7 @@ export function buildPresets(): {
 			name: `Recent ${n}`,
 			style: { text: V(`recent_${n}_label`), size: 'auto', color: WHITE, bgcolor: DARK_GREY },
 			previewStyle: { text: `Recent ${n}` },
-			steps: [{ down: [{ actionId: 'show_recent_position', options: { position: n } }], up: [] }],
+			steps: [{ down: [{ actionId: 'show_recent_position', options: { position: n, autoClear: false } }], up: [] }],
 			feedbacks: [],
 		}
 	}

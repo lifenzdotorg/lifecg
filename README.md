@@ -18,7 +18,16 @@ It replaces the old NodeCG setup (`lifenz-nodecg` Companion module → NodeCG `s
 ## The graphic
 
 Matches the original LIFE design: white name bar, optional dark designation bar (drawn only when a designation is set), and the plus ornaments. Both bars size to the text and are right-anchored. The background gradient and plus layers are the original artwork (`app/Sources/LifeCGCore/Resources`).
-Animation: the gradient fades in, the bars wipe in from the right, then the text fades in. Changing title while on air plays out → in.
+Animation is set separately for **on** and **off** in the app's *Settings* (any combination):
+
+| Option | Look |
+|---|---|
+| Slide box, fade text | Bars wipe in from the right, then the text fades in (the original NodeCG look, and the default) |
+| Slide box and text | Bars slide out from behind the plus ornaments with their text already on them |
+| Fade | The whole graphic fades |
+| Cut | Instant |
+
+Changing title while on air plays the off transition, then the on transition. Off transitions run a little faster than on.
 
 ![reference](docs/reference-composite.png)
 
@@ -29,7 +38,7 @@ Animation: the gradient fades in, the bars wipe in from the right, then the text
 1. Run **LifeCG.app** on the CG Mac. It lives in the menu bar (closing the window keeps it running). Turn on *Settings → Launch at login*.
 2. In ProPresenter 7, add a **Live Video** input → **Syphon** → `LifeCG`, and put it on a layer above your slides/video so alpha keys through.
 3. In each Companion, import `lifenz-lifecg-x.y.z.tgz` (Modules → Import module package), add a connection, and set **Host** = the CG Mac's IP (the app's *Connections* tab lists it) and **Port** = `9123`.
-4. Buttons: **Show Title** (type a Title + optional Designation, *or* pick from the **Recent Titles** dropdown of the last 20), **Hide**, **Toggle**, **Show Recent #N**. There are presets for all of these.
+4. Buttons: **Show Title** (type a Title + optional Designation, *or* pick from the **Recent Titles** dropdown of the last 20, with an optional **Auto clear after 8 seconds** tickbox), **Hide**, **Toggle**, **Show Recent #N**. There are presets for all of these. The auto-clear timer runs in the app, so it still fires if Companion drops off.
 
 The Recent list lives in the app, so every Companion instance shares it. It is saved in `~/Library/Application Support/LifeCG/recent.json`.
 

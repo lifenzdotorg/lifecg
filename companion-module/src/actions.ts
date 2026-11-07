@@ -10,8 +10,8 @@ import {
 } from './protocol.js'
 
 export type ActionsSchema = {
-	show_title: { options: { recent: string; title: string; designation: string } }
-	show_recent_position: { options: { position: number } }
+	show_title: { options: { recent: string; title: string; designation: string; autoClear: boolean } }
+	show_recent_position: { options: { position: number; autoClear: boolean } }
 	hide_title: { options: Record<string, never> }
 	toggle_title: { options: Record<string, never> }
 	clear_recent: { options: Record<string, never> }
@@ -26,6 +26,20 @@ export interface ActionContext {
 }
 
 const str = (v: unknown): string => (v === undefined || v === null ? '' : String(v))
+
+/** Seconds used by the "Auto clear" checkbox. The timer runs in LifeCG.app, so it still fires if Companion disconnects. */
+export const AUTO_CLEAR_SECONDS = 8
+
+const AUTO_CLEAR_OPTION = {
+	id: 'autoClear',
+	type: 'checkbox',
+	label: `Auto clear after ${AUTO_CLEAR_SECONDS} seconds`,
+	default: false,
+} as const
+
+/** Extra message field when the checkbox is ticked; nothing otherwise (keeps old buttons' messages unchanged). */
+const autoClearField = (v: unknown): { autoClearSeconds?: number } =>
+	v === true ? { autoClearSeconds: AUTO_CLEAR_SECONDS } : {}
 
 /** Shown when the referenced field is a plain value, so `$(options:recent)` can be used in isVisibleExpression. */
 const CUSTOM_VISIBLE = `$(options:recent) == '${CUSTOM_CHOICE_ID}'`
@@ -66,8 +80,10 @@ export function buildActionDefinitions(ctx: ActionContext): CompanionActionDefin
 					useVariables: true,
 					isVisibleExpression: CUSTOM_VISIBLE,
 				},
+				AUTO_CLEAR_OPTION,
 			],
 			callback: (action) => {
+				const auto = autoClearField(action.options.autoClear)
 				const choice = str(action.options.recent) || CUSTOM_CHOICE_ID
 				if (choice === CUSTOM_CHOICE_ID) {
 					// With API 2.x Companion has already substituted $(variables) in `useVariables` fields
@@ -77,14 +93,14 @@ export function buildActionDefinitions(ctx: ActionContext): CompanionActionDefin
 						ctx.log('warn', 'Show Title: title is empty, nothing sent')
 						return
 					}
-					ctx.send({ type: 'show', title, designation })
+					ctx.send({ type: 'show', title, designation, ...auto })
 					return
 				}
 				if (!findRecent(ctx.getState(), choice)) {
 					ctx.log('warn', `Show Title: recent title "${choice}" is no longer in the Recent list; nothing sent`)
 					return
 				}
-				ctx.send({ type: 'showRecent', id: choice })
+				ctx.send({ type: 'showRecent', id: choice, ...auto })
 			},
 		},
 
@@ -102,6 +118,7 @@ export function buildActionDefinitions(ctx: ActionContext): CompanionActionDefin
 					asInteger: true,
 					clampValues: true,
 				},
+				AUTO_CLEAR_OPTION,
 			],
 			callback: (action) => {
 				const n = Math.round(Number(action.options.position))
@@ -114,7 +131,7 @@ export function buildActionDefinitions(ctx: ActionContext): CompanionActionDefin
 					ctx.log('info', `Show Recent: position ${n} is empty (only ${count} recent titles)`)
 					return
 				}
-				ctx.send({ type: 'showRecent', index: n - 1 })
+				ctx.send({ type: 'showRecent', index: n - 1, ...autoClearField(action.options.autoClear) })
 			},
 		},
 

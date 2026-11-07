@@ -4,3 +4,4 @@ app/.build/
 app/Vendor/Syphon/.build/
 *.xcuserstate
 xcuserdata/
+dist/
