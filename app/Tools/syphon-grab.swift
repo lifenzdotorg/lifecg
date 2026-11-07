@@ -31,8 +31,16 @@ s.lock(options: .readOnly, seed: nil)
 let info = CGImageAlphaInfo.premultipliedFirst.rawValue | CGBitmapInfo.byteOrder32Little.rawValue
 let ctx = CGContext(data: s.baseAddress, width: s.width, height: s.height, bitsPerComponent: 8, bytesPerRow: s.bytesPerRow,
                     space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: info)!
-let img = ctx.makeImage()!
+// Syphon surfaces are bottom-left origin (OpenGL convention): the first row in memory is
+// the BOTTOM of the picture. Real receivers (ProPresenter, Resolume, Syphon Simple Client)
+// read it that way, so flip here too or this tool will disagree with them.
+let raw = ctx.makeImage()!
 s.unlock(options: .readOnly, seed: nil)
+let out = CGContext(data: nil, width: raw.width, height: raw.height, bitsPerComponent: 8, bytesPerRow: 0,
+                    space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: info)!
+out.translateBy(x: 0, y: CGFloat(raw.height)); out.scaleBy(x: 1, y: -1)
+out.draw(raw, in: CGRect(x: 0, y: 0, width: raw.width, height: raw.height))
+let img = out.makeImage()!
 let dest = CGImageDestinationCreateWithURL(URL(fileURLWithPath: args[2]) as CFURL, "public.png" as CFString, 1, nil)!
 CGImageDestinationAddImage(dest, img, nil); CGImageDestinationFinalize(dest)
 print("saved \(frame.width)x\(frame.height) to \(args[2])")

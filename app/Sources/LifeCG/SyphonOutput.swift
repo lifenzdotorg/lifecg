@@ -52,15 +52,18 @@ final class SyphonOutput {
         let region = MTLRegionMake2D(0, 0, GraphicRenderer.width, GraphicRenderer.height)
         texture.replace(region: region, mipmapLevel: 0, withBytes: r.bytes, bytesPerRow: r.bytesPerRow)
         guard let cb = queue.makeCommandBuffer() else { return }
-        // The CGContext buffer is top-row-first, which is Metal's texture orientation → not flipped.
+        // Syphon frames are bottom-left origin (OpenGL convention): receivers such as
+        // ProPresenter read the IOSurface's first row as the BOTTOM of the picture.
+        // Our CGContext buffer is top-row-first, so it must be published flipped.
         server.publishFrameTexture(texture, on: cb,
                                    imageRegion: NSRect(x: 0, y: 0, width: GraphicRenderer.width, height: GraphicRenderer.height),
                                    flipped: SyphonOutput.flipped)
         cb.commit()
     }
 
-    /// Orientation flag for publishFrameTexture; verified by the Syphon smoke test.
-    static var flipped = false
+    /// Orientation flag for publishFrameTexture. Must be true for a top-row-first source:
+    /// with false, ProPresenter showed the graphic upside down (confirmed in PP7, Nov 2026).
+    static let flipped = true
 
     func stop() {
         server?.stop()

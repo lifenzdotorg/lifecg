@@ -38,7 +38,14 @@ Upstream files that are not used: the Xcode project, Info.plist, docc, icon and 
    it logs the error with NSLog and returns nil. All patched code is marked `VENDOR PATCH`. If you
    update upstream, keep the embedded string in sync with `SyphonMetalShaders.metal`.
    The shaders are only used when `flipped:` is YES or the source isn't `.bgra8Unorm`. An unflipped
-   BGRA texture uses a blit.
+   BGRA texture uses a blit. **LifeCG publishes with `flipped: YES`, so it always uses this path.**
+
+> **Orientation:** Syphon frames are bottom-left origin (OpenGL convention). Receivers such as
+> ProPresenter treat the IOSurface's first row as the *bottom* of the picture. A texture filled
+> top-row-first (from a CGBitmapContext, or `replace(region:)` of such a buffer) must be published
+> with `flipped: true`, or it shows upside down. A test client that reads the IOSurface top-down
+> agrees with the wrong answer, so check orientation in a real receiver (ProPresenter, or Syphon
+> Simple Client), or read the surface bottom-up the way `app/Tools/syphon-grab.swift` does.
 2. **`Syphon_Prefix.pch` renamed to `Syphon_Prefix.h`** (content unchanged). It's passed with
    `-include`, the way Xcode's prefix header setting used it.
 3. **New `include/module.modulemap`.** Upstream ships a `framework module`, which can't be used from a
