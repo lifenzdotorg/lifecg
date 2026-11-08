@@ -1,3 +1,4 @@
+import CoreGraphics
 import Foundation
 #if canImport(LifeCGCore)
 import LifeCGCore
@@ -83,6 +84,34 @@ if args.count >= 2, args[1] == "--selftest" {
     let mids = [Transition.slideBoxFadeText, .slideBoxAndText, .fade].map { snapshot($0, 0.5) }
     check(Set(mids.map { $0.hashValue }).count == 3 && !mids.contains(reference), "transitions differ mid-way")
     check(snapshot(.cut, 0.01) == reference, "cut shows the full frame immediately")
+    // GPU compositor must match the CPU reference for every transition and stage.
+    if let gpu = MetalCompositor(renderer: r), let loaded = gpu.load(r.sprites(title: "Ps Luke de Jong", designation: "Lead Pastor")) {
+        func bytes(_ img: CGImage) -> [UInt8] {
+            let c = CGContext(data: nil, width: img.width, height: img.height, bitsPerComponent: 8, bytesPerRow: img.width * 4,
+                              space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                              bitmapInfo: CGImageAlphaInfo.premultipliedFirst.rawValue | CGBitmapInfo.byteOrder32Little.rawValue)!
+            c.draw(img, in: CGRect(x: 0, y: 0, width: img.width, height: img.height))
+            return Array(UnsafeBufferPointer(start: c.data!.assumingMemoryBound(to: UInt8.self), count: img.width * img.height * 4))
+        }
+        var worst = (0.0, "")
+        for t in Transition.allCases {
+            for p in [0.15, 0.35, 0.5, 0.65, 0.85, 1.0] {
+                let cpu = snapshot(t, p)
+                let plan = GraphicRenderer.plan(loaded.sprites.layout, progress: p, transition: t)
+                let g = bytes(gpu.renderImage(loaded, plan: plan)!)
+                var bad = 0
+                for i in 0..<cpu.count where abs(Int(cpu[i]) - Int(g[i])) > 6 { bad += 1 }
+                let pct = Double(bad) / Double(cpu.count) * 100
+                if pct > worst.0 { worst = (pct, "\(t.rawValue)@\(p)") }
+            }
+        }
+        print(String(format: "  GPU vs CPU: worst %.3f%% of channels differ by >6 (%@)", worst.0, worst.1 as NSString))
+        check(worst.0 < 0.5, "GPU compositor matches CPU reference")
+        let empty = bytes(gpu.renderImage(nil, plan: nil)!)
+        check(stride(from: 3, to: empty.count, by: 4).allSatisfy { empty[$0] == 0 }, "GPU off-air frame transparent")
+    } else {
+        check(false, "Metal compositor available")
+    }
     print("fonts:", r.resolvedFontNames())
     print(failures == 0 ? "ALL PASS" : "\(failures) FAILED")
     exit(failures == 0 ? 0 : 1)
@@ -93,9 +122,7 @@ if args.count >= 2, args[1] == "--selftest" {
 if args.count >= 3, args[1] == "--serve" {
     let store = TitleStore(fileURL: args.count > 3 ? URL(fileURLWithPath: args[3]) : nil)
     let server = ControlServer(store: store)
-    let animator = GraphicAnimator(renderer: GraphicRenderer())
-    var frames = 0
-    animator.onFrame = { _ in frames += 1 }
+    guard let animator = GraphicAnimator(renderer: GraphicRenderer()) else { fail("Metal unavailable") }
     server.onLog = { print($0) }
     store.onChange = { st in
         server.broadcast(st)

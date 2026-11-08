@@ -63,6 +63,8 @@ struct MainView: View {
                 }
             }
             Spacer()
+            Text("\(AppModel.fpsLabel(model.settings.frameRate)) · measured \(String(format: "%.1f", model.measuredFPS))")
+                .font(.caption).foregroundColor(abs(model.measuredFPS - model.settings.frameRate) < 1 ? .secondary : .orange)
             Label(model.syphonHasClients ? "Syphon: receiving" : "Syphon: no receivers",
                   systemImage: model.syphonHasClients ? "dot.radiowaves.left.and.right" : "antenna.radiowaves.left.and.right.slash")
                 .foregroundColor(model.syphonHasClients ? .green : .secondary)
@@ -223,6 +225,14 @@ struct SettingsView: View {
                     ForEach(Transition.allCases, id: \.self) { Text($0.label).tag($0) }
                 }
                 .frame(width: 280)
+            }
+            HStack(spacing: 24) {
+                Picker("Output frame rate", selection: $model.settings.frameRate) {
+                    ForEach(AppSettings.frameRates, id: \.self) { Text(AppModel.fpsLabel($0)).tag($0) }
+                }
+                .frame(width: 280)
+                Stepper("Auto clear after: \(Int(model.settings.autoClearSeconds)) s",
+                        value: $model.settings.autoClearSeconds, in: 1...120, step: 1)
             }
             Toggle("Launch at login", isOn: Binding(get: { model.launchAtLogin }, set: { model.setLaunchAtLogin($0) }))
             Toggle("Show Dock icon (menu bar icon is always shown)", isOn: $model.settings.showDockIcon)

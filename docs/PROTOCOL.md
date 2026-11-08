@@ -15,8 +15,8 @@ All messages are UTF-8 JSON text frames with a `type` field.
 | type | fields | effect |
 |---|---|---|
 | `hello` | `client` (string, e.g. `"companion"`), `name` (instance label), `protocol` (number, `1`) | Identify. App replies with `state`. |
-| `show` | `title` (string, required, non-empty after trim), `designation` (string, optional), `autoClearSeconds` (number, 0.1–600, optional) | Put this title on air. If something is already on air, it animates out and the new one animates in. Adds/bumps the entry in Recent. With `autoClearSeconds` the app hides it after that many seconds. |
-| `showRecent` | `id` (string) **or** `index` (number, 0 = most recent), `autoClearSeconds` (optional) | Show an entry from the Recent list. |
+| `show` | `title` (string, required, non-empty after trim), `designation` (string, optional), `autoClear` (bool, optional) **or** `autoClearSeconds` (number, 0.1–600, optional) | Put this title on air. If something is already on air, it animates out and the new one animates in. Adds/bumps the entry in Recent. With `autoClear: true` the app hides it after its configured time (Settings, default 8 s); `autoClearSeconds` overrides that time. |
+| `showRecent` | `id` (string) **or** `index` (number, 0 = most recent), `autoClear` / `autoClearSeconds` (optional) | Show an entry from the Recent list. |
 | `hide` | — | Animate the title off air. |
 | `toggle` | — | If on air → hide. If off air → re-show the last shown title (if any). |
 | `removeRecent` | `id` | Remove one entry from Recent. |
@@ -39,12 +39,14 @@ Unknown types → `{"type":"error","message":"..."}`. Invalid `show` (empty titl
   "recent": [
     { "id": "a1b2c3d4", "title": "Ps Luke de Jong", "designation": "Lead Pastor", "lastUsed": "2026-11-08T09:30:00Z" }
   ],
+  "autoClearDefaultSeconds": 8,
   "autoClearAt": null
 }
 ```
 
 - `current` is `null` when off air. `last` is the most recently shown title (used by `toggle`), or `null`.
 - `designation` is always a string (`""` when absent). The graphic only draws the designation bar when it is non-empty.
+- `autoClearDefaultSeconds` is the app's configured auto-clear time (what `autoClear: true` uses).
 - `autoClearAt` is an ISO-8601 time when the current title will hide itself, or `null`.
   The timer runs in the app (so it still fires if the client disconnects). Any later
   `show`, `showRecent`, `hide` or `toggle` from any client cancels it.

@@ -24,13 +24,18 @@ export interface LifeCGState {
 	current: TitleEntry | null
 	last: TitleEntry | null
 	recent: RecentEntry[]
+	/** The app's configured auto-clear time (Settings). null = older app that doesn't report it. */
+	autoClearDefaultSeconds: number | null
 }
+
+/** Used for the tickbox label and request when the app doesn't report its own time. */
+export const FALLBACK_AUTO_CLEAR_SECONDS = 8
 
 export type ClientMessage =
 	| { type: 'hello'; client: string; name: string; protocol: number }
-	| { type: 'show'; title: string; designation?: string; autoClearSeconds?: number }
-	| { type: 'showRecent'; id: string; autoClearSeconds?: number }
-	| { type: 'showRecent'; index: number; autoClearSeconds?: number }
+	| { type: 'show'; title: string; designation?: string; autoClear?: boolean; autoClearSeconds?: number }
+	| { type: 'showRecent'; id: string; autoClear?: boolean; autoClearSeconds?: number }
+	| { type: 'showRecent'; index: number; autoClear?: boolean; autoClearSeconds?: number }
 	| { type: 'hide' }
 	| { type: 'toggle' }
 	| { type: 'removeRecent'; id: string }
@@ -48,6 +53,7 @@ export const EMPTY_STATE: LifeCGState = {
 	current: null,
 	last: null,
 	recent: [],
+	autoClearDefaultSeconds: null,
 }
 
 function asString(v: unknown): string {
@@ -81,6 +87,8 @@ export function normaliseState(raw: Record<string, unknown>): LifeCGState {
 		current,
 		last: normaliseEntry(raw.last),
 		recent,
+		autoClearDefaultSeconds:
+			typeof raw.autoClearDefaultSeconds === 'number' && raw.autoClearDefaultSeconds > 0 ? raw.autoClearDefaultSeconds : null,
 	}
 }
 
@@ -131,8 +139,14 @@ export function showTitleChoices(state: LifeCGState): Choice[] {
 }
 
 /** A cheap signature so we only rebuild action/feedback definitions when the dropdowns would change. */
+/** Changes whenever the action definitions need re-publishing (Recent list or auto-clear time). */
 export function recentSignature(state: LifeCGState): string {
-	return JSON.stringify(state.recent.map((e) => [e.id, e.title, e.designation]))
+	return JSON.stringify([state.autoClearDefaultSeconds, state.recent.map((e) => [e.id, e.title, e.designation])])
+}
+
+/** Seconds shown on the "Auto clear" tickbox. */
+export function autoClearLabelSeconds(state: LifeCGState): number {
+	return state.autoClearDefaultSeconds ?? FALLBACK_AUTO_CLEAR_SECONDS
 }
 
 export function findRecent(state: LifeCGState, id: string): RecentEntry | undefined {

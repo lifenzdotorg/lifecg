@@ -1,6 +1,8 @@
 import type { CompanionActionDefinitions } from '@companion-module/base'
 import {
 	CUSTOM_CHOICE_ID,
+	FALLBACK_AUTO_CLEAR_SECONDS,
+	autoClearLabelSeconds,
 	MAX_RECENT,
 	findRecent,
 	recentChoices,
@@ -27,19 +29,29 @@ export interface ActionContext {
 
 const str = (v: unknown): string => (v === undefined || v === null ? '' : String(v))
 
-/** Seconds used by the "Auto clear" checkbox. The timer runs in LifeCG.app, so it still fires if Companion disconnects. */
-export const AUTO_CLEAR_SECONDS = 8
+/**
+ * "Auto clear" tickbox. The time is set in LifeCG.app's Settings and the label follows it
+ * (definitions are re-published when it changes). The timer runs in the app, so it still
+ * fires if Companion disconnects.
+ */
+const autoClearOption = (state: LifeCGState) =>
+	({
+		id: 'autoClear',
+		type: 'checkbox',
+		label: `Auto clear after ${autoClearLabelSeconds(state)} seconds`,
+		description: 'The time is set in LifeCG.app → Settings.',
+		default: false,
+	}) as const
 
-const AUTO_CLEAR_OPTION = {
-	id: 'autoClear',
-	type: 'checkbox',
-	label: `Auto clear after ${AUTO_CLEAR_SECONDS} seconds`,
-	default: false,
-} as const
-
-/** Extra message field when the checkbox is ticked; nothing otherwise (keeps old buttons' messages unchanged). */
-const autoClearField = (v: unknown): { autoClearSeconds?: number } =>
-	v === true ? { autoClearSeconds: AUTO_CLEAR_SECONDS } : {}
+/**
+ * Extra message field when ticked; nothing otherwise (keeps old buttons' messages unchanged).
+ * A current app gets `autoClear: true` and applies its own time; an older app that doesn't
+ * report a time gets the fallback seconds explicitly.
+ */
+const autoClearField = (state: LifeCGState, v: unknown): { autoClear?: boolean; autoClearSeconds?: number } => {
+	if (v !== true) return {}
+	return state.autoClearDefaultSeconds !== null ? { autoClear: true } : { autoClearSeconds: FALLBACK_AUTO_CLEAR_SECONDS }
+}
 
 /** Shown when the referenced field is a plain value, so `$(options:recent)` can be used in isVisibleExpression. */
 const CUSTOM_VISIBLE = `$(options:recent) == '${CUSTOM_CHOICE_ID}'`
@@ -80,10 +92,10 @@ export function buildActionDefinitions(ctx: ActionContext): CompanionActionDefin
 					useVariables: true,
 					isVisibleExpression: CUSTOM_VISIBLE,
 				},
-				AUTO_CLEAR_OPTION,
+				autoClearOption(state),
 			],
 			callback: (action) => {
-				const auto = autoClearField(action.options.autoClear)
+				const auto = autoClearField(ctx.getState(), action.options.autoClear)
 				const choice = str(action.options.recent) || CUSTOM_CHOICE_ID
 				if (choice === CUSTOM_CHOICE_ID) {
 					// With API 2.x Companion has already substituted $(variables) in `useVariables` fields
@@ -118,7 +130,7 @@ export function buildActionDefinitions(ctx: ActionContext): CompanionActionDefin
 					asInteger: true,
 					clampValues: true,
 				},
-				AUTO_CLEAR_OPTION,
+				autoClearOption(state),
 			],
 			callback: (action) => {
 				const n = Math.round(Number(action.options.position))
@@ -131,7 +143,7 @@ export function buildActionDefinitions(ctx: ActionContext): CompanionActionDefin
 					ctx.log('info', `Show Recent: position ${n} is empty (only ${count} recent titles)`)
 					return
 				}
-				ctx.send({ type: 'showRecent', index: n - 1, ...autoClearField(action.options.autoClear) })
+				ctx.send({ type: 'showRecent', index: n - 1, ...autoClearField(ctx.getState(), action.options.autoClear) })
 			},
 		},
 

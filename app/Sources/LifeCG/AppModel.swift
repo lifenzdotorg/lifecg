@@ -15,6 +15,12 @@ struct AppSettings: Codable, Equatable {
     var showDockIcon = true
     var transitionIn: Transition = .slideBoxFadeText
     var transitionOut: Transition = .slideBoxFadeText
+    /// Output frame rate. LIFE runs everything at 1080p50.
+    var frameRate: Double = 50
+    /// Used when Companion's "Auto clear" tickbox is on.
+    var autoClearSeconds: Double = 8
+
+    static let frameRates: [Double] = [25, 29.97, 30, 50, 59.94, 60]
 
     init() {}
 
@@ -29,6 +35,8 @@ struct AppSettings: Codable, Equatable {
         showDockIcon = try c.decodeIfPresent(Bool.self, forKey: .showDockIcon) ?? d.showDockIcon
         transitionIn = (try? c.decodeIfPresent(Transition.self, forKey: .transitionIn)) ?? d.transitionIn
         transitionOut = (try? c.decodeIfPresent(Transition.self, forKey: .transitionOut)) ?? d.transitionOut
+        frameRate = try c.decodeIfPresent(Double.self, forKey: .frameRate) ?? d.frameRate
+        autoClearSeconds = try c.decodeIfPresent(Double.self, forKey: .autoClearSeconds) ?? d.autoClearSeconds
     }
 
     static let key = "AppSettings.v1"
@@ -47,6 +55,7 @@ final class AppModel: ObservableObject {
     @Published private(set) var log: [String] = []
     @Published private(set) var serverError: String?
     @Published private(set) var syphonHasClients = false
+    @Published private(set) var measuredFPS: Double = 0
     @Published var settings: AppSettings { didSet { settingsChanged(oldValue) } }
     @Published var launchAtLogin: Bool = false
 
@@ -55,7 +64,7 @@ final class AppModel: ObservableObject {
     let renderer: GraphicRenderer
     let animator: GraphicAnimator
     private(set) var syphon: SyphonOutput?
-    private var lastPreview = 0.0
+    private var statusTimer: Timer?
 
     var fontNames: (title: String, designation: String) { renderer.resolvedFontNames() }
 
@@ -70,13 +79,16 @@ final class AppModel: ObservableObject {
         style.offsetY = loaded.offsetY
         let r = GraphicRenderer(style: style)
         renderer = r
-        animator = GraphicAnimator(renderer: r)
-        animator.inTransition = loaded.transitionIn
-        animator.outTransition = loaded.transitionOut
+        // Every Mac that runs macOS 13 has Metal; without it there is nothing to output.
+        guard let anim = GraphicAnimator(renderer: r) else { fatalError("LifeCG needs Metal (GPU) support") }
+        animator = anim
+        animator.setConfig(Self.animatorConfig(loaded))
+        store.defaultAutoClearSeconds = loaded.autoClearSeconds
+        state = store.state
         if #available(macOS 13.0, *) { launchAtLogin = SMAppService.mainApp.status == .enabled }
 
-        syphon = SyphonOutput(name: settings.syphonName)
-        if syphon == nil { addLog("ERROR: Metal unavailable — Syphon output disabled") }
+        syphon = SyphonOutput(name: settings.syphonName, device: anim.compositor.device)
+        if syphon == nil { addLog("ERROR: Syphon server could not start") }
 
         store.onChange = { [weak self] st in
             guard let self else { return }
@@ -87,23 +99,21 @@ final class AppModel: ObservableObject {
         }
         server.onLog = { [weak self] in self?.addLog($0) }
         server.onClientsChanged = { [weak self] in self?.clients = $0 }
-        animator.onFrame = { [weak self] r in
-            guard let self else { return }
-            self.syphon?.publish(r)
-            let now = CACurrentMediaTime()
-            // Preview at ~20 fps while animating, otherwise only on change.
-            if now - self.lastPreview > 0.05 || !self.animator.isAnimating {
-                self.lastPreview = now
-                if let cg = r.makeImage() {
-                    self.preview = NSImage(cgImage: cg, size: NSSize(width: GraphicRenderer.width, height: GraphicRenderer.height))
-                }
-                let has = self.syphon?.hasClients ?? false
-                if has != self.syphonHasClients { self.syphonHasClients = has }
-            }
+        let syphon = self.syphon
+        animator.onFrame = { tex, cb in syphon?.publish(tex, on: cb) }   // render queue
+        animator.onPreview = { [weak self] img in                         // main queue
+            self?.preview = NSImage(cgImage: img, size: NSSize(width: GraphicRenderer.width, height: GraphicRenderer.height))
         }
 
         startServer()
         animator.start()
+        statusTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
+            guard let self else { return }
+            let fps = self.animator.measuredFPS()
+            if abs(fps - self.measuredFPS) > 0.05 { self.measuredFPS = fps }
+            let has = self.syphon?.hasClients ?? false
+            if has != self.syphonHasClients { self.syphonHasClients = has }
+        }
         addLog("Syphon server: \(settings.syphonName)")
         addLog("Fonts: \(fontNames.title) / \(fontNames.designation)")
     }
@@ -139,7 +149,17 @@ final class AppModel: ObservableObject {
         launchAtLogin = SMAppService.mainApp.status == .enabled
     }
 
+    static func animatorConfig(_ s: AppSettings) -> GraphicAnimator.Config {
+        var c = GraphicAnimator.Config()
+        c.inTransition = s.transitionIn
+        c.outTransition = s.transitionOut
+        c.frameRate = s.frameRate
+        c.offset = CGPoint(x: s.offsetX, y: s.offsetY)
+        return c
+    }
+
     func shutdown() {
+        statusTimer?.invalidate()
         server.stop()
         animator.stop()
         syphon?.stop()
@@ -153,19 +173,23 @@ final class AppModel: ObservableObject {
         if settings.syphonName != old.syphonName, !settings.syphonName.isEmpty {
             syphon?.rename(settings.syphonName); addLog("Syphon server renamed: \(settings.syphonName)")
         }
-        if settings.offsetX != old.offsetX || settings.offsetY != old.offsetY {
-            renderer.style.offsetX = settings.offsetX
-            renderer.style.offsetY = settings.offsetY
-            animator.redraw()
-        }
+        let newConfig = Self.animatorConfig(settings)
+        if newConfig != Self.animatorConfig(old) { animator.setConfig(newConfig) }
         if settings.transitionIn != old.transitionIn || settings.transitionOut != old.transitionOut {
-            animator.inTransition = settings.transitionIn
-            animator.outTransition = settings.transitionOut
             addLog("Transitions: on = \(settings.transitionIn.label), off = \(settings.transitionOut.label)")
+        }
+        if settings.frameRate != old.frameRate { addLog("Output frame rate: \(Self.fpsLabel(settings.frameRate))") }
+        if settings.autoClearSeconds != old.autoClearSeconds {
+            store.defaultAutoClearSeconds = settings.autoClearSeconds
+            addLog("Auto clear time: \(Int(settings.autoClearSeconds)) s")
         }
         if settings.showDockIcon != old.showDockIcon {
             NSApp.setActivationPolicy(settings.showDockIcon ? .regular : .accessory)
         }
+    }
+
+    static func fpsLabel(_ f: Double) -> String {
+        f == f.rounded() ? "\(Int(f)) fps" : String(format: "%.2f fps", f)
     }
 
     func addLog(_ s: String) {

@@ -24,6 +24,7 @@ const sample: LifeCGState = {
 		{ ...luke, lastUsed: '2026-11-08T09:30:00Z' },
 		{ ...anna, lastUsed: '2026-11-08T09:00:00Z' },
 	],
+	autoClearDefaultSeconds: 8,
 }
 
 describe('state -> variables', () => {
@@ -87,7 +88,10 @@ describe('parsing', () => {
 			current: null,
 			last: null,
 			recent: [{ id: 'x', title: 'T', designation: '' }],
+			autoClearDefaultSeconds: null, // older app: doesn't report its auto-clear time
 		})
+		expect(normaliseState({ autoClearDefaultSeconds: 12 }).autoClearDefaultSeconds).toBe(12)
+		expect(normaliseState({ autoClearDefaultSeconds: 'x' }).autoClearDefaultSeconds).toBe(null)
 	})
 
 	it('caps recent at 20', () => {

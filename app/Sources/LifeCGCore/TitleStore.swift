@@ -32,6 +32,9 @@ public struct TitleState: Equatable, Sendable {
     public var recent: [TitleEntry]
     /// When the current title will clear itself (nil = stays up until hidden).
     public var autoClearAt: Date? = nil
+    /// The app's configured auto-clear time, used when a client asks for auto-clear
+    /// without giving a time (Settings → Auto clear after).
+    public var autoClearDefaultSeconds: Double = 8
 
     public func jsonObject() -> [String: Any] {
         func entry(_ e: TitleEntry?, withDate: Bool = false) -> Any {
@@ -47,6 +50,7 @@ public struct TitleState: Equatable, Sendable {
             "current": entry(current),
             "last": entry(last),
             "recent": recent.map { entry($0, withDate: true) },
+            "autoClearDefaultSeconds": autoClearDefaultSeconds,
             "autoClearAt": autoClearAt.map { ISO8601DateFormatter().string(from: $0) as Any } ?? NSNull(),
         ]
     }
@@ -62,6 +66,17 @@ public final class TitleStore {
 
     private let fileURL: URL?
     private var autoClearWork: DispatchWorkItem?
+
+    /// The configured default auto-clear time (Settings). Broadcast so Companion can label its tickbox.
+    public var defaultAutoClearSeconds: Double {
+        get { state.autoClearDefaultSeconds }
+        set {
+            let v = min(max(newValue, Self.autoClearRange.lowerBound), Self.autoClearRange.upperBound)
+            guard v != state.autoClearDefaultSeconds else { return }
+            state.autoClearDefaultSeconds = v
+            commit(persist: false)
+        }
+    }
 
     /// Allowed auto-clear range (seconds).
     public static let autoClearRange: ClosedRange<Double> = 0.1...600

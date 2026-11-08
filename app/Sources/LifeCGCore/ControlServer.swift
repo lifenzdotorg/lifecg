@@ -104,7 +104,7 @@ public final class ControlServer {
         }
 
         let body = (try? JSONSerialization.jsonObject(with: req.body)) as? [String: Any] ?? [:]
-        let autoClear = (body["autoClearSeconds"] as? NSNumber)?.doubleValue
+        let autoClear = autoClearSeconds(body)
         func ok() { c.respond(200, Self.json(store.state.jsonObject())) }
         func bad(_ msg: String, _ code: Int = 400) { c.respond(code, Self.json(["type": "error", "message": msg])) }
 
@@ -147,10 +147,10 @@ public final class ControlServer {
                 c.sendText(Self.json(store.state.jsonObject()))
             case "show":
                 try store.show(title: obj["title"] as? String ?? "", designation: obj["designation"] as? String ?? "",
-                               autoClearAfter: (obj["autoClearSeconds"] as? NSNumber)?.doubleValue)
+                               autoClearAfter: autoClearSeconds(obj))
             case "showRecent":
                 try store.showRecent(id: obj["id"] as? String, index: (obj["index"] as? NSNumber)?.intValue,
-                                     autoClearAfter: (obj["autoClearSeconds"] as? NSNumber)?.doubleValue)
+                                     autoClearAfter: autoClearSeconds(obj))
             case "hide": store.hide()
             case "toggle": store.toggle()
             case "removeRecent": store.removeRecent(id: obj["id"] as? String ?? "")
@@ -161,6 +161,13 @@ public final class ControlServer {
         } catch {
             err(error.localizedDescription)
         }
+    }
+
+    /// `autoClearSeconds: n` → n; `autoClear: true` → the app's configured time; otherwise nil.
+    private func autoClearSeconds(_ obj: [String: Any]) -> Double? {
+        if let n = obj["autoClearSeconds"] as? NSNumber, CFGetTypeID(n) != CFBooleanGetTypeID() { return n.doubleValue }
+        if (obj["autoClear"] as? Bool) == true { return store.defaultAutoClearSeconds }
+        return nil
     }
 
     static func json(_ obj: Any) -> String {

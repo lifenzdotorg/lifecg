@@ -172,6 +172,27 @@ describe('LifeCGClient against the mock server', () => {
 		expect(srv.received.at(-1)).toEqual({ type: 'showRecent', index: 0 })
 	})
 
+	it('tickbox follows the app\'s configured auto-clear time and sends autoClear: true', async () => {
+		srv.state.autoClearDefaultSeconds = 12
+		const t = setup(srv)
+		clients.push(t.client)
+		t.client.start()
+		await waitFor(() => t.client.isConnected && t.client.state.autoClearDefaultSeconds === 12)
+		const def = t.actions().show_title as { options: { id: string; label?: string }[] }
+		expect(def.options.find((o) => o.id === 'autoClear')?.label).toBe('Auto clear after 12 seconds')
+
+		await t.run('show_title', { recent: CUSTOM_CHOICE_ID, title: 'Anna Smith', designation: '', autoClear: true })
+		await waitFor(() => srv.received.at(-1)?.type === 'show')
+		expect(srv.received.at(-1)).toEqual({ type: 'show', title: 'Anna Smith', designation: '', autoClear: true })
+
+		// Changing the time in the app re-labels the tickbox
+		srv.state.autoClearDefaultSeconds = 5
+		srv.broadcast()
+		await waitFor(() => t.client.state.autoClearDefaultSeconds === 5)
+		const def2 = t.actions().show_recent_position as { options: { id: string; label?: string }[] }
+		expect(def2.options.find((o) => o.id === 'autoClear')?.label).toBe('Auto clear after 5 seconds')
+	})
+
 	it('falls back gracefully on a stale recent id and an empty custom title', async () => {
 		const t = setup(srv)
 		clients.push(t.client)

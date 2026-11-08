@@ -29,6 +29,10 @@ Animation is set separately for **on** and **off** in the app's *Settings* (any 
 
 Changing title while on air plays the off transition, then the on transition. Off transitions run a little faster than on.
 
+**Output:** 1920×1080 at **50 fps** by default (LIFE's 1080p50 standard; 25/29.97/30/59.94/60 are in *Settings*).
+Frames are composited on the GPU on a fixed clock, one animation step per frame, and published every frame. The app
+window shows the measured rate next to the setting. In ProPresenter set the input's **Alpha Type** to **Premultiplied**.
+
 ![reference](docs/reference-composite.png)
 
 **Font:** the design uses **Neuzeit Grotesk** (Bold for the name, Regular for the designation). It is a commercial font and is **not** in this repo. Install `NeuzeitGro-Bol` / `NeuzeitGro-Reg` on the CG Mac. Without it the app falls back to Avenir Next at the same size and shows the fallback in orange under *Settings*.
@@ -38,7 +42,7 @@ Changing title while on air plays the off transition, then the on transition. Of
 1. Run **LifeCG.app** on the CG Mac. It lives in the menu bar (closing the window keeps it running). Turn on *Settings → Launch at login*.
 2. In ProPresenter 7, add a **Live Video** input → **Syphon** → `LifeCG`, and put it on a layer above your slides/video so alpha keys through.
 3. In each Companion, import `lifenz-lifecg-x.y.z.tgz` (Modules → Import module package), add a connection, and set **Host** = the CG Mac's IP (the app's *Connections* tab lists it) and **Port** = `9123`.
-4. Buttons: **Show Title** (type a Title + optional Designation, *or* pick from the **Recent Titles** dropdown of the last 20, with an optional **Auto clear after 8 seconds** tickbox), **Hide**, **Toggle**, **Show Recent #N**. There are presets for all of these. The auto-clear timer runs in the app, so it still fires if Companion drops off.
+4. Buttons: **Show Title** (type a Title + optional Designation, *or* pick from the **Recent Titles** dropdown of the last 20, with an optional **Auto clear** tickbox; the time is set in the app's *Settings*, default 8 s), **Hide**, **Toggle**, **Show Recent #N**. There are presets for all of these. The auto-clear timer runs in the app, so it still fires if Companion drops off.
 
 The Recent list lives in the app, so every Companion instance shares it. It is saved in `~/Library/Application Support/LifeCG/recent.json`.
 
