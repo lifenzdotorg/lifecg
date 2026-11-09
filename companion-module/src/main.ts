@@ -114,6 +114,6 @@ export default class LifeCGInstance extends InstanceBase<ModuleSchema> {
 			this.setFeedbackDefinitions(buildFeedbackDefinitions(() => this.#state))
 		}
 		this.setVariableValues(stateToVariables(state))
-		this.checkFeedbacks('on_air', 'title_on_air')
+		this.checkFeedbacks('on_air', 'title_on_air', 'theme_active')
 	}
 }

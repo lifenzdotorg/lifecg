@@ -15,8 +15,8 @@ let package = Package(
         // Platform-neutral core: state, recent titles, rendering, control server.
         .target(
             name: "LifeCGCore",
-            path: "Sources/LifeCGCore",
-            resources: [.copy("Resources/plus-layer.png"), .copy("Resources/gradient-layer.png")]
+            path: "Sources/LifeCGCore"
+            // Themes are found at app/Themes from the source tree (see Resources.swift).
         ),
         // The menu-bar app: Syphon output + operator window.
         .executableTarget(

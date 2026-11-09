@@ -8,6 +8,8 @@ export interface MockServer {
 		last: { id: string; title: string; designation: string } | null
 		recent: { id: string; title: string; designation: string; lastUsed: string }[]
 		autoClearDefaultSeconds?: number
+		theme?: string
+		themes?: { id: string; name: string }[]
 	}
 	received: Array<Record<string, unknown>>
 	clients: Set<unknown>

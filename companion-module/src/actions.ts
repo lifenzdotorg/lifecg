@@ -18,6 +18,7 @@ export type ActionsSchema = {
 	toggle_title: { options: Record<string, never> }
 	clear_recent: { options: Record<string, never> }
 	remove_recent: { options: { id: string } }
+	set_theme: { options: { theme: string } }
 }
 
 /** What the action callbacks need from the module instance (kept small so it can be faked in tests). */
@@ -170,6 +171,29 @@ export function buildActionDefinitions(ctx: ActionContext): CompanionActionDefin
 			options: [],
 			callback: () => {
 				ctx.send({ type: 'clearRecent' })
+			},
+		},
+
+		set_theme: {
+			name: 'Set Theme',
+			description: 'Switch the look of the speaker titles. Themes are added in LifeCG.app (Themes tab).',
+			options: [
+				{
+					id: 'theme',
+					type: 'dropdown',
+					label: 'Theme',
+					choices: state.themes.map((t) => ({ id: t.id, label: t.name })),
+					default: state.themes[0]?.id ?? 'life',
+					disableAutoExpression: true,
+				},
+			],
+			callback: (action) => {
+				const id = str(action.options.theme)
+				if (!ctx.getState().themes.some((t) => t.id === id)) {
+					ctx.log('warn', `Set Theme: "${id}" isn't installed in LifeCG.app; nothing sent`)
+					return
+				}
+				ctx.send({ type: 'setTheme', id })
 			},
 		},
 

@@ -7,6 +7,7 @@ import LifeCGCore
 // Usage:
 //   lt-render <out.png> <title> [designation] [progress 0..1]
 //   lt-render --selftest
+//   lt-render --extract <sample.png> <outdir> [titleText] [designationText]
 let args = CommandLine.arguments
 
 func fail(_ msg: String) -> Never { FileHandle.standardError.write((msg + "\n").data(using: .utf8)!); exit(1) }
@@ -112,10 +113,14 @@ if args.count >= 2, args[1] == "--selftest" {
     } else {
         check(false, "Metal compositor available")
     }
+    extractorSelfTests(check)
     print("fonts:", r.resolvedFontNames())
     print(failures == 0 ? "ALL PASS" : "\(failures) FAILED")
     exit(failures == 0 ? 0 : 1)
 }
+
+// Theme from a sample PNG: lt-render --extract <sample.png> <outdir> [title] [designation]
+if args.count >= 2, args[1] == "--extract" { runExtractCommand(args) }
 
 // Headless server (no Syphon): lt-render --serve <port> [store.json]
 // Used to integration-test the Companion module and for debugging.

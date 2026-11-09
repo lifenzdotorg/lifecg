@@ -14,7 +14,7 @@ struct MainView: View {
         HSplitView {
             VStack(alignment: .leading, spacing: 14) {
                 statusBar
-                PreviewView(image: model.preview)
+                PreviewView(preview: model.preview)
                     .aspectRatio(16.0 / 9.0, contentMode: .fit)
                     .clipShape(RoundedRectangle(cornerRadius: 6))
                     .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.secondary.opacity(0.3)))
@@ -22,6 +22,7 @@ struct MainView: View {
                 Picker("", selection: $tab) {
                     Text("Connections").tag(0)
                     Text("Settings").tag(1)
+                    Text("Themes").tag(3)
                     Text("Log").tag(2)
                 }
                 .pickerStyle(.segmented)
@@ -30,6 +31,7 @@ struct MainView: View {
                     switch tab {
                     case 0: ConnectionsView(model: model)
                     case 1: SettingsView(model: model)
+                    case 3: ThemesView(model: model)
                     default: LogView(lines: model.log)
                     }
                 }
@@ -102,8 +104,10 @@ struct MainView: View {
 
 /// Checkerboard behind the transparent frame so alpha is visible.
 struct PreviewView: View {
-    let image: NSImage?
+    @ObservedObject var preview: PreviewModel
     var body: some View {
+        let image = preview.image
+        return
         ZStack {
             Canvas { ctx, size in
                 let s: CGFloat = 12
@@ -236,8 +240,8 @@ struct SettingsView: View {
             }
             Toggle("Launch at login", isOn: Binding(get: { model.launchAtLogin }, set: { model.setLaunchAtLogin($0) }))
             Toggle("Show Dock icon (menu bar icon is always shown)", isOn: $model.settings.showDockIcon)
-            Text("Fonts in use: \(model.fontNames.title) / \(model.fontNames.designation)")
-                .font(.caption).foregroundColor(model.fontNames.title.hasPrefix("Neuzeit") ? .secondary : .orange)
+            Text("Fonts in use: \(model.fontNames.title) / \(model.fontNames.designation)\(model.fontNames.preferredInstalled ? "" : " (fallback: install the theme's font)")")
+                .font(.caption).foregroundColor(model.fontNames.preferredInstalled ? .secondary : .orange)
         }
         .onAppear { portText = String(model.settings.port); syphonName = model.settings.syphonName }
     }

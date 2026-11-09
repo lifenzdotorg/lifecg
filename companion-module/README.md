@@ -35,7 +35,7 @@ Sources:
    npm run package      # -> lifenz-lifecg-<version>.tgz
    ```
 2. In Companion, open **Modules** and click **Import module package**. Choose the `.tgz`.
-3. Open **Connections**, click **Add connection**, search for **LIFE LifeCG**, then set the Host and Port.
+3. Open **Connections**, click **Add connection**, search for **LIFENZ: LifeCG**, then set the Host and Port.
 
 Repeat on every machine that runs Companion. To upgrade, import a newer `.tgz`; it shows up as a new version you can select.
 

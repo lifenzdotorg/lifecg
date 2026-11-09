@@ -1,4 +1,4 @@
-## LIFE LifeCG
+## LIFENZ: LifeCG
 
 Controls **LifeCG.app**, the macOS app that renders speaker-title lower thirds and sends them to ProPresenter 7 over Syphon. The app holds the state, including the shared Recent Titles list. Any number of Companion installs can connect to it at once, and all of them see the same titles and on-air state.
 
@@ -14,6 +14,7 @@ The module connects to `ws://host:port/ws` and reconnects automatically if the c
 ### Actions
 
 - **Show Title**: pick an entry from **Recent Titles**, or choose _"— Type a new title —"_ and enter a **Title** and an optional **Designation**. Both text fields accept variables, e.g. `$(internal:custom_speaker)`. The Recent list in the dropdown updates live. Tick **Auto clear after N seconds** to have the title hide itself (N is set in LifeCG.app → Settings, default 8; the label shows the app's current value); a Hide or a new title from any button cancels the pending clear.
+- **Set Theme**: switch the look (themes are added in LifeCG.app's Themes tab). The **Theme is Active** feedback and the `theme` / `theme_id` variables follow it.
 - **Show Recent Title by position** (also has the auto-clear tickbox): 1 is the most recent title. Nothing happens if that position is empty.
 - **Hide Title**
 - **Toggle Title**: hides the title if it's on air, otherwise shows the last title again.

@@ -25,6 +25,8 @@ const sample: LifeCGState = {
 		{ ...anna, lastUsed: '2026-11-08T09:00:00Z' },
 	],
 	autoClearDefaultSeconds: 8,
+	theme: 'life',
+	themes: [{ id: 'life', name: 'LIFE' }],
 }
 
 describe('state -> variables', () => {
@@ -55,7 +57,7 @@ describe('state -> variables', () => {
 	it('defines every variable it sets', () => {
 		const defs = variableDefinitions()
 		expect(Object.keys(stateToVariables(sample)).sort()).toEqual(Object.keys(defs).sort())
-		expect(Object.keys(defs)).toHaveLength(6 + 20 * 3)
+		expect(Object.keys(defs)).toHaveLength(8 + 20 * 3)
 	})
 })
 
@@ -89,7 +91,12 @@ describe('parsing', () => {
 			last: null,
 			recent: [{ id: 'x', title: 'T', designation: '' }],
 			autoClearDefaultSeconds: null, // older app: doesn't report its auto-clear time
+			theme: '',
+			themes: [],
 		})
+		const st = normaliseState({ theme: 'north', themes: [{ id: 'life', name: 'LIFE' }, { id: 'north', name: 'North' }, { name: 'no id' }] })
+		expect(st.themes).toEqual([{ id: 'life', name: 'LIFE' }, { id: 'north', name: 'North' }])
+		expect(stateToVariables(st).theme).toBe('North')
 		expect(normaliseState({ autoClearDefaultSeconds: 12 }).autoClearDefaultSeconds).toBe(12)
 		expect(normaliseState({ autoClearDefaultSeconds: 'x' }).autoClearDefaultSeconds).toBe(null)
 	})

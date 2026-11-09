@@ -80,6 +80,10 @@ export async function startMockServer({ port = 9123, host = '127.0.0.1', respond
 			case 'clearRecent':
 				state.recent = []
 				return null
+			case 'setTheme':
+				if (!(state.themes ?? []).some((t) => t.id === msg.id)) return `Unknown theme: ${msg.id}`
+				state.theme = msg.id
+				return null
 			default:
 				return `unknown type: ${msg.type}`
 		}

@@ -35,6 +35,20 @@ window shows the measured rate next to the setting. In ProPresenter set the inpu
 
 ![reference](docs/reference-composite.png)
 
+### Themes (other campuses)
+
+Every look is a **theme**: a folder with `theme.json` (bar positions, colours, fonts, padding, shadow, anchor side)
+plus optional full-frame `background.png` / `foreground.png` layers for anything that doesn't move with the text.
+The built-in **LIFE** theme lives in [`app/Themes/life`](app/Themes/life). Imported themes are saved to
+`~/Library/Application Support/LifeCG/Themes/<id>/` and can be edited by hand (then press *Reload*).
+
+**Make a theme from a sample PNG:** in the app's *Themes* tab, drop in (or *Import from PNG…*) a 1920×1080 PNG of a
+finished speaker title, ideally with a transparent background. The app finds the bars, their colours and alpha,
+padding, text colour and size, baseline, anchor side and shadow. It separates the fixed artwork into background and
+foreground layers, then shows the sample and a re-drawn version side by side with a match score. Type the sample's
+exact name/designation text and pick its fonts for a precise size and letter-spacing match (fonts can't be read
+from pixels). Switch themes in the app or from Companion (*Set Theme*). The change applies immediately.
+
 **Font:** the design uses **Neuzeit Grotesk** (Bold for the name, Regular for the designation). It is a commercial font and is **not** in this repo. Install `NeuzeitGro-Bol` / `NeuzeitGro-Reg` on the CG Mac. Without it the app falls back to Avenir Next at the same size and shows the fallback in orange under *Settings*.
 
 ## Using it

@@ -1,0 +1,58 @@
+{
+  "anchor" : "right",
+  "backgroundLayer" : "background.png",
+  "designation" : {
+    "anchorX" : 1806,
+    "baseline" : 1030.5,
+    "bottom" : 1047,
+    "capHeight" : 23.5,
+    "color" : "#242424ED",
+    "fonts" : [
+      "NeuzeitGro-Reg",
+      "NeuzeitGrotesk-Regular",
+      "AvenirNext-Regular",
+      "HelveticaNeue"
+    ],
+    "padInner" : 30,
+    "padOuter" : 53,
+    "shadow" : {
+      "blur" : 18,
+      "offsetY" : 4,
+      "opacity" : 0.22
+    },
+    "textColor" : "#FFFFFFFF",
+    "top" : 993,
+    "tracking" : 0.0923,
+    "uppercase" : false
+  },
+  "edgeMargin" : 40,
+  "foregroundLayer" : "foreground.png",
+  "formatVersion" : 1,
+  "id" : "life",
+  "name" : "LIFE",
+  "notes" : "Built in: the original LIFE NodeCG graphic",
+  "title" : {
+    "anchorX" : 1795,
+    "baseline" : 972.5,
+    "bottom" : 993,
+    "capHeight" : 39.5,
+    "color" : "#FDFDFDE8",
+    "fonts" : [
+      "NeuzeitGro-Bol",
+      "NeuzeitGrotesk-Bold",
+      "AvenirNext-Bold",
+      "HelveticaNeue-Bold"
+    ],
+    "padInner" : 23,
+    "padOuter" : 26,
+    "shadow" : {
+      "blur" : 18,
+      "offsetY" : 4,
+      "opacity" : 0.22
+    },
+    "textColor" : "#222222FF",
+    "top" : 918,
+    "tracking" : 0.0675,
+    "uppercase" : false
+  }
+}

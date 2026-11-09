@@ -24,6 +24,13 @@ public struct TitleEntry: Codable, Equatable, Sendable {
     }
 }
 
+/// A theme as clients see it.
+public struct ThemeInfo: Equatable, Sendable {
+    public var id: String
+    public var name: String
+    public init(id: String, name: String) { self.id = id; self.name = name }
+}
+
 /// Snapshot broadcast to every client (see docs/PROTOCOL.md).
 public struct TitleState: Equatable, Sendable {
     public var onAir: Bool
@@ -35,6 +42,9 @@ public struct TitleState: Equatable, Sendable {
     /// The app's configured auto-clear time, used when a client asks for auto-clear
     /// without giving a time (Settings → Auto clear after).
     public var autoClearDefaultSeconds: Double = 8
+    /// Active theme and the themes available in the app.
+    public var themeID: String = "life"
+    public var themes: [ThemeInfo] = []
 
     public func jsonObject() -> [String: Any] {
         func entry(_ e: TitleEntry?, withDate: Bool = false) -> Any {
@@ -51,6 +61,8 @@ public struct TitleState: Equatable, Sendable {
             "last": entry(last),
             "recent": recent.map { entry($0, withDate: true) },
             "autoClearDefaultSeconds": autoClearDefaultSeconds,
+            "theme": themeID,
+            "themes": themes.map { ["id": $0.id, "name": $0.name] },
             "autoClearAt": autoClearAt.map { ISO8601DateFormatter().string(from: $0) as Any } ?? NSNull(),
         ]
     }
@@ -76,6 +88,14 @@ public final class TitleStore {
             state.autoClearDefaultSeconds = v
             commit(persist: false)
         }
+    }
+
+    /// Publish the theme list and active theme (the app owns themes; the store just shares them).
+    public func setThemes(active: String, all: [ThemeInfo]) {
+        guard active != state.themeID || all != state.themes else { return }
+        state.themeID = active
+        state.themes = all
+        commit(persist: false)
     }
 
     /// Allowed auto-clear range (seconds).

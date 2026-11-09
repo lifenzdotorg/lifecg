@@ -23,6 +23,8 @@ public final class GraphicAnimator {
     public var onFrame: ((MTLTexture, MTLCommandBuffer) -> Void)?
     /// Low-rate preview of the output for the UI, delivered on the main queue.
     public var onPreview: ((CGImage) -> Void)?
+    private var previewEnabled = false
+    private var previewWanted = false
 
     // All of the below is owned by `queue`.
     private var config = Config()
@@ -66,14 +68,22 @@ public final class GraphicAnimator {
         }
     }
 
-    /// Re-rasterise and redraw (after a style change such as fonts).
-    public func setStyle(_ style: GraphicStyle) {
+    /// Switch theme: re-upload its layers and re-rasterise whatever is on screen (a cut to the new look).
+    public func setTheme(_ theme: LoadedTheme) {
         queue.async {
-            self.renderer.style = style
-            self.config.offset = CGPoint(x: style.offsetX, y: style.offsetY)
+            self.renderer.theme = theme
+            self.compositor.loadLayers(from: self.renderer)
             if let e = self.displayedEntry { self.displayed = self.loadEntry(e) }
             if let p = self.pending, let t = self.loadEntry(p.entry) { self.pending = (p.entry, t) }
             self.dirty = true
+        }
+    }
+
+    /// Only make previews while someone can see them (the app window is on screen).
+    public func setPreviewEnabled(_ on: Bool) {
+        queue.async {
+            self.previewEnabled = on
+            if on { self.previewWanted = true }   // refresh straight away when it reappears
         }
     }
 
@@ -149,8 +159,10 @@ public final class GraphicAnimator {
         onFrame?(compositor.output, cb)
         // Preview: ~10 fps while moving, and once when it settles.
         frameCount += 1
-        if changed && (direction == 0 || frameCount % max(Int(config.frameRate / 10), 1) == 0), let onPreview {
-            compositor.encodeReadback(into: cb) { img in
+        let periodic = changed && (direction == 0 || frameCount % max(Int(config.frameRate / 10), 1) == 0)
+        if previewEnabled, periodic || previewWanted, let onPreview {
+            previewWanted = false
+            compositor.encodePreview(into: cb) { img in
                 if let img { DispatchQueue.main.async { onPreview(img) } }
             }
         }

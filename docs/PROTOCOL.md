@@ -21,6 +21,7 @@ All messages are UTF-8 JSON text frames with a `type` field.
 | `toggle` | — | If on air → hide. If off air → re-show the last shown title (if any). |
 | `removeRecent` | `id` | Remove one entry from Recent. |
 | `clearRecent` | — | Empty Recent. |
+| `setTheme` | `id` (string, from `themes`) | Switch the look of the graphic (applies immediately, including to a title on air). |
 | `ping` | — | App replies `{"type":"pong"}`. |
 
 Unknown types → `{"type":"error","message":"..."}`. Invalid `show` (empty title) → `error`.
@@ -40,12 +41,16 @@ Unknown types → `{"type":"error","message":"..."}`. Invalid `show` (empty titl
     { "id": "a1b2c3d4", "title": "Ps Luke de Jong", "designation": "Lead Pastor", "lastUsed": "2026-11-08T09:30:00Z" }
   ],
   "autoClearDefaultSeconds": 8,
+  "theme": "life",
+  "themes": [{ "id": "life", "name": "LIFE" }],
   "autoClearAt": null
 }
 ```
 
 - `current` is `null` when off air. `last` is the most recently shown title (used by `toggle`), or `null`.
 - `designation` is always a string (`""` when absent). The graphic only draws the designation bar when it is non-empty.
+- `theme` is the active theme id and `themes` lists `{id, name}` for every theme installed in the app
+  (built-in plus imported). Themes are created in the app (Themes tab, including from a sample PNG).
 - `autoClearDefaultSeconds` is the app's configured auto-clear time (what `autoClear: true` uses).
 - `autoClearAt` is an ISO-8601 time when the current title will hide itself, or `null`.
   The timer runs in the app (so it still fires if the client disconnects). Any later
@@ -64,6 +69,7 @@ Unknown types → `{"type":"error","message":"..."}`. Invalid `show` (empty titl
 | `POST /api/hide` | — | 200 + state |
 | `POST /api/toggle` | — | 200 + state |
 | `POST /api/recent/clear` | — | 200 + state |
+| `POST /api/theme` | `{"id":"…"}` | 200 + state |
 
 ### Legacy NodeCG compatibility
 

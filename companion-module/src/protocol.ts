@@ -26,6 +26,14 @@ export interface LifeCGState {
 	recent: RecentEntry[]
 	/** The app's configured auto-clear time (Settings). null = older app that doesn't report it. */
 	autoClearDefaultSeconds: number | null
+	/** Active theme id and the themes installed in the app ('' / [] from an older app). */
+	theme: string
+	themes: ThemeInfo[]
+}
+
+export interface ThemeInfo {
+	id: string
+	name: string
 }
 
 /** Used for the tickbox label and request when the app doesn't report its own time. */
@@ -40,6 +48,7 @@ export type ClientMessage =
 	| { type: 'toggle' }
 	| { type: 'removeRecent'; id: string }
 	| { type: 'clearRecent' }
+	| { type: 'setTheme'; id: string }
 	| { type: 'ping' }
 
 export type ServerMessage =
@@ -54,6 +63,8 @@ export const EMPTY_STATE: LifeCGState = {
 	last: null,
 	recent: [],
 	autoClearDefaultSeconds: null,
+	theme: '',
+	themes: [],
 }
 
 function asString(v: unknown): string {
@@ -89,6 +100,11 @@ export function normaliseState(raw: Record<string, unknown>): LifeCGState {
 		recent,
 		autoClearDefaultSeconds:
 			typeof raw.autoClearDefaultSeconds === 'number' && raw.autoClearDefaultSeconds > 0 ? raw.autoClearDefaultSeconds : null,
+		theme: asString(raw.theme),
+		themes: (Array.isArray(raw.themes) ? raw.themes : [])
+			.map((t) => (t && typeof t === 'object' ? (t as Record<string, unknown>) : {}))
+			.map((t) => ({ id: asString(t.id), name: asString(t.name) || asString(t.id) }))
+			.filter((t) => t.id !== ''),
 	}
 }
 
@@ -141,7 +157,11 @@ export function showTitleChoices(state: LifeCGState): Choice[] {
 /** A cheap signature so we only rebuild action/feedback definitions when the dropdowns would change. */
 /** Changes whenever the action definitions need re-publishing (Recent list or auto-clear time). */
 export function recentSignature(state: LifeCGState): string {
-	return JSON.stringify([state.autoClearDefaultSeconds, state.recent.map((e) => [e.id, e.title, e.designation])])
+	return JSON.stringify([
+		state.autoClearDefaultSeconds,
+		state.themes.map((t) => [t.id, t.name]),
+		state.recent.map((e) => [e.id, e.title, e.designation]),
+	])
 }
 
 /** Seconds shown on the "Auto clear" tickbox. */
@@ -165,6 +185,8 @@ export function stateToVariables(state: LifeCGState): VariableValues {
 		last_title: state.last?.title ?? '',
 		last_designation: state.last?.designation ?? '',
 		recent_count: state.recent.length,
+		theme: state.themes.find((t) => t.id === state.theme)?.name ?? state.theme,
+		theme_id: state.theme,
 	}
 	for (let i = 0; i < MAX_RECENT; i++) {
 		const e = state.recent[i]
@@ -184,6 +206,8 @@ export function variableDefinitions(): Record<string, { name: string }> {
 		last_title: { name: 'Last shown title' },
 		last_designation: { name: 'Last shown designation' },
 		recent_count: { name: 'Number of recent titles' },
+		theme: { name: 'Active theme (name)' },
+		theme_id: { name: 'Active theme (id)' },
 	}
 	for (let n = 1; n <= MAX_RECENT; n++) {
 		defs[`recent_${n}_title`] = { name: `Recent ${n}: title` }

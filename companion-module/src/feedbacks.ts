@@ -4,9 +4,11 @@ import { CUSTOM_CHOICE_ID, currentMatchesText, recentChoices, type LifeCGState }
 export type FeedbacksSchema = {
 	on_air: { type: 'boolean'; options: Record<string, never> }
 	title_on_air: { type: 'boolean'; options: { recent: string; title: string; designation: string } }
+	theme_active: { type: 'boolean'; options: { theme: string } }
 }
 
 const RED = 0xcc0000
+const BLUE = 0x1f5fbf
 const WHITE = 0xffffff
 
 const str = (v: unknown): string => (v === undefined || v === null ? '' : String(v))
@@ -23,6 +25,23 @@ export function buildFeedbackDefinitions(getState: () => LifeCGState): Companion
 			defaultStyle: { bgcolor: RED, color: WHITE },
 			options: [],
 			callback: () => getState().onAir,
+		},
+		theme_active: {
+			type: 'boolean',
+			name: 'Theme is Active',
+			description: 'True while the chosen theme is the one on output.',
+			defaultStyle: { bgcolor: BLUE, color: WHITE },
+			options: [
+				{
+					id: 'theme',
+					type: 'dropdown',
+					label: 'Theme',
+					choices: state.themes.map((t) => ({ id: t.id, label: t.name })),
+					default: state.themes[0]?.id ?? 'life',
+					disableAutoExpression: true,
+				},
+			],
+			callback: (fb) => getState().theme === str(fb.options.theme),
 		},
 		title_on_air: {
 			type: 'boolean',

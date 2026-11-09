@@ -1,4 +1,5 @@
 import AppKit
+import CoreText
 import Combine
 import Foundation
 import ServiceManagement
@@ -19,6 +20,8 @@ struct AppSettings: Codable, Equatable {
     var frameRate: Double = 50
     /// Used when Companion's "Auto clear" tickbox is on.
     var autoClearSeconds: Double = 8
+    /// Active theme id (see ThemeLibrary).
+    var themeID = "life"
 
     static let frameRates: [Double] = [25, 29.97, 30, 50, 59.94, 60]
 
@@ -37,6 +40,7 @@ struct AppSettings: Codable, Equatable {
         transitionOut = (try? c.decodeIfPresent(Transition.self, forKey: .transitionOut)) ?? d.transitionOut
         frameRate = try c.decodeIfPresent(Double.self, forKey: .frameRate) ?? d.frameRate
         autoClearSeconds = try c.decodeIfPresent(Double.self, forKey: .autoClearSeconds) ?? d.autoClearSeconds
+        themeID = try c.decodeIfPresent(String.self, forKey: .themeID) ?? d.themeID
     }
 
     static let key = "AppSettings.v1"
@@ -47,15 +51,22 @@ struct AppSettings: Codable, Equatable {
     func save() { UserDefaults.standard.set(try? JSONEncoder().encode(self), forKey: Self.key) }
 }
 
+/// Live preview image, kept separate from AppModel so a new frame only redraws the
+/// preview, not the whole window.
+final class PreviewModel: ObservableObject {
+    @Published var image: NSImage?
+}
+
 /// Wires store ⇄ server ⇄ animator ⇄ Syphon, and publishes state for the UI.
 final class AppModel: ObservableObject {
     @Published private(set) var state: TitleState
     @Published private(set) var clients: [ControlServer.ClientInfo] = []
-    @Published private(set) var preview: NSImage?
+    let preview = PreviewModel()
     @Published private(set) var log: [String] = []
     @Published private(set) var serverError: String?
     @Published private(set) var syphonHasClients = false
     @Published private(set) var measuredFPS: Double = 0
+    @Published private(set) var themes: [LoadedTheme] = []
     @Published var settings: AppSettings { didSet { settingsChanged(oldValue) } }
     @Published var launchAtLogin: Bool = false
 
@@ -66,7 +77,21 @@ final class AppModel: ObservableObject {
     private(set) var syphon: SyphonOutput?
     private var statusTimer: Timer?
 
-    var fontNames: (title: String, designation: String) { renderer.resolvedFontNames() }
+    /// The theme currently on output.
+    var activeTheme: LoadedTheme { themes.first { $0.theme.id == settings.themeID } ?? themes[0] }
+
+    /// Fonts the active theme resolves to on this Mac, and whether its preferred fonts are installed.
+    var fontNames: (title: String, designation: String, preferredInstalled: Bool) {
+        let t = activeTheme.theme
+        func resolve(_ names: [String]) -> (String, Bool) {
+            for n in names where (CTFontCopyPostScriptName(CTFontCreateWithName(n as CFString, 12, nil)) as String) == n {
+                return (n, n == names.first)
+            }
+            return ("system font", false)
+        }
+        let a = resolve(t.title.fonts), b = resolve((t.designation ?? t.title).fonts)
+        return (a.0, b.0, a.1 && b.1)
+    }
 
     init() {
         let loaded = AppSettings.load()
@@ -74,16 +99,18 @@ final class AppModel: ObservableObject {
         store = TitleStore(fileURL: TitleStore.defaultFileURL)
         state = store.state
         server = ControlServer(store: store)
-        var style = GraphicStyle()
-        style.offsetX = loaded.offsetX
-        style.offsetY = loaded.offsetY
-        let r = GraphicRenderer(style: style)
+        let library = ThemeLibrary.all()
+        themes = library
+        let active = library.first { $0.theme.id == loaded.themeID } ?? library[0]
+        let r = GraphicRenderer(theme: active)
+        r.offset = CGPoint(x: loaded.offsetX, y: loaded.offsetY)
         renderer = r
         // Every Mac that runs macOS 13 has Metal; without it there is nothing to output.
         guard let anim = GraphicAnimator(renderer: r) else { fatalError("LifeCG needs Metal (GPU) support") }
         animator = anim
         animator.setConfig(Self.animatorConfig(loaded))
         store.defaultAutoClearSeconds = loaded.autoClearSeconds
+        store.setThemes(active: active.theme.id, all: library.map { ThemeInfo(id: $0.theme.id, name: $0.theme.name) })
         state = store.state
         if #available(macOS 13.0, *) { launchAtLogin = SMAppService.mainApp.status == .enabled }
 
@@ -99,10 +126,11 @@ final class AppModel: ObservableObject {
         }
         server.onLog = { [weak self] in self?.addLog($0) }
         server.onClientsChanged = { [weak self] in self?.clients = $0 }
+        server.onSetTheme = { [weak self] id in self?.selectTheme(id) ?? false }
         let syphon = self.syphon
         animator.onFrame = { tex, cb in syphon?.publish(tex, on: cb) }   // render queue
         animator.onPreview = { [weak self] img in                         // main queue
-            self?.preview = NSImage(cgImage: img, size: NSSize(width: GraphicRenderer.width, height: GraphicRenderer.height))
+            self?.preview.image = NSImage(cgImage: img, size: NSSize(width: img.width, height: img.height))
         }
 
         startServer()
@@ -149,6 +177,47 @@ final class AppModel: ObservableObject {
         launchAtLogin = SMAppService.mainApp.status == .enabled
     }
 
+    // MARK: Themes
+
+    /// Switch the output to theme `id` (from the UI or a Companion). False if unknown.
+    @discardableResult
+    func selectTheme(_ id: String) -> Bool {
+        guard themes.contains(where: { $0.theme.id == id }) else { return false }
+        if settings.themeID != id { settings.themeID = id }   // → settingsChanged → applyActiveTheme
+        return true
+    }
+
+    private func applyActiveTheme() {
+        let t = activeTheme
+        animator.setTheme(t)
+        store.setThemes(active: t.theme.id, all: themes.map { ThemeInfo(id: $0.theme.id, name: $0.theme.name) })
+        addLog("Theme: \(t.theme.name)")
+        objectWillChange.send()
+    }
+
+    /// Re-read themes from disk (after an import, delete or hand edit).
+    func reloadThemes() {
+        themes = ThemeLibrary.all()
+        if !themes.contains(where: { $0.theme.id == settings.themeID }) { settings.themeID = themes[0].theme.id }
+        applyActiveTheme()
+    }
+
+    /// Save an imported theme and switch to it.
+    func saveImportedTheme(_ x: ThemeExtraction, sample: CGImage) throws {
+        try ThemeLibrary.save(x.theme, background: x.background, foreground: x.foreground, extras: ["sample.png": sample])
+        themes = ThemeLibrary.all()
+        addLog("Imported theme: \(x.theme.name)")
+        selectTheme(x.theme.id)
+        applyActiveTheme()
+    }
+
+    func deleteTheme(_ id: String) {
+        guard let t = themes.first(where: { $0.theme.id == id }), !t.isBuiltIn else { return }
+        do { try ThemeLibrary.delete(id: id); addLog("Deleted theme: \(t.theme.name)") }
+        catch { addLog("ERROR: delete theme: \(error.localizedDescription)") }
+        reloadThemes()
+    }
+
     static func animatorConfig(_ s: AppSettings) -> GraphicAnimator.Config {
         var c = GraphicAnimator.Config()
         c.inTransition = s.transitionIn
@@ -175,6 +244,7 @@ final class AppModel: ObservableObject {
         }
         let newConfig = Self.animatorConfig(settings)
         if newConfig != Self.animatorConfig(old) { animator.setConfig(newConfig) }
+        if settings.themeID != old.themeID { applyActiveTheme() }
         if settings.transitionIn != old.transitionIn || settings.transitionOut != old.transitionOut {
             addLog("Transitions: on = \(settings.transitionIn.label), off = \(settings.transitionOut.label)")
         }

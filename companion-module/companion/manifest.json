@@ -4,14 +4,14 @@
 	"id": "lifenz-lifecg",
 	"name": "lifenz-lifecg",
 	"shortname": "lifecg",
-	"description": "Control the LIFE LifeCG.app (speaker-title lower thirds for ProPresenter via Syphon)",
+	"description": "Control LIFENZ LifeCG.app (speaker-title lower thirds for ProPresenter via Syphon)",
 	"version": "0.0.0",
 	"license": "MIT",
 	"repository": "git+https://github.com/lifenzdotorg/lifecg.git",
 	"bugs": "https://github.com/lifenzdotorg/lifecg/issues",
 	"maintainers": [
 		{
-			"name": "LIFE"
+			"name": "LIFENZ"
 		}
 	],
 	"runtime": {
@@ -21,7 +21,7 @@
 		"entrypoint": "../dist/main.js"
 	},
 	"legacyIds": [],
-	"manufacturer": "LIFE",
+	"manufacturer": "LIFENZ",
 	"products": ["LifeCG"],
 	"keywords": ["lower third", "lower thirds", "speaker title", "propresenter", "syphon", "graphics", "church"]
 }

@@ -18,8 +18,8 @@ public final class MetalCompositor {
     public let output: MTLTexture
     private let pipeline: MTLRenderPipelineState
     private let sampler: MTLSamplerState
-    private let gradient: MTLTexture?
-    private let plus: MTLTexture?
+    private var gradient: MTLTexture?   // theme background layer
+    private var plus: MTLTexture?       // theme foreground layer
 
     /// GPU copy of one title's pieces, plus the finished composite (used for fades,
     /// cuts and the resting frame).
@@ -87,8 +87,13 @@ public final class MetalCompositor {
               let out = Self.makeTarget(device) else { return nil }
         self.sampler = sampler
         output = out
-        gradient = renderer.gradientLayer.flatMap { Self.texture(device, $0) }
-        plus = renderer.plusLayer.flatMap { Self.texture(device, $0) }
+        loadLayers(from: renderer)
+    }
+
+    /// (Re)upload the theme's background/foreground layers (call after a theme change).
+    public func loadLayers(from renderer: GraphicRenderer) {
+        gradient = renderer.backgroundLayer.flatMap { Self.texture(device, $0) }
+        plus = renderer.foregroundLayer.flatMap { Self.texture(device, $0) }
     }
 
     private static func makeTarget(_ device: MTLDevice) -> MTLTexture? {
@@ -212,7 +217,58 @@ public final class MetalCompositor {
 
     private func clear(_ cb: MTLCommandBuffer, _ target: MTLTexture) { pass(cb, target) { _ in } }
 
-    // MARK: - Read back (preview, tests)
+    // MARK: - Preview (half size, reused buffers)
+
+    public static let previewWidth = GraphicRenderer.width / 2
+    public static let previewHeight = GraphicRenderer.height / 2
+    private lazy var previewTarget: MTLTexture? = {
+        let d = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: .bgra8Unorm, width: Self.previewWidth,
+                                                         height: Self.previewHeight, mipmapped: false)
+        d.usage = [.renderTarget, .shaderRead]
+        d.storageMode = .private
+        return device.makeTexture(descriptor: d)
+    }()
+    /// Two buffers alternate so a preview being read on the CPU is never overwritten.
+    private lazy var previewBuffers: [MTLBuffer] = (0..<2).compactMap { _ in
+        device.makeBuffer(length: Self.previewWidth * 4 * Self.previewHeight, options: .storageModeShared)
+    }
+    private var previewIndex = 0
+
+    /// Downscale `output` on the GPU and copy it into a reused buffer; `completion` gets a
+    /// half-size image on a Metal thread. About 2 MB per preview instead of 8 MB, no allocation.
+    public func encodePreview(into cb: MTLCommandBuffer, completion: @escaping (CGImage?) -> Void) {
+        guard let target = previewTarget, previewBuffers.count == 2 else { completion(nil); return }
+        let rp = MTLRenderPassDescriptor()
+        rp.colorAttachments[0].texture = target
+        rp.colorAttachments[0].loadAction = .clear
+        rp.colorAttachments[0].clearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: 0)
+        rp.colorAttachments[0].storeAction = .store
+        guard let enc = cb.makeRenderCommandEncoder(descriptor: rp) else { completion(nil); return }
+        enc.setRenderPipelineState(pipeline)
+        enc.setFragmentSamplerState(sampler, index: 0)
+        var q = Quad(rect: SIMD4(0, 0, Float(GraphicRenderer.width), Float(GraphicRenderer.height)), alpha: SIMD4(1, 0, 0, 0))
+        var vp = SIMD2<Float>(Float(GraphicRenderer.width), Float(GraphicRenderer.height))
+        enc.setVertexBytes(&q, length: MemoryLayout<Quad>.stride, index: 0)
+        enc.setVertexBytes(&vp, length: MemoryLayout<SIMD2<Float>>.stride, index: 1)
+        enc.setFragmentBytes(&q, length: MemoryLayout<Quad>.stride, index: 0)
+        enc.setFragmentTexture(output, index: 0)
+        enc.drawPrimitives(type: .triangleStrip, vertexStart: 0, vertexCount: 4)
+        enc.endEncoding()
+
+        let buf = previewBuffers[previewIndex]
+        previewIndex ^= 1
+        let w = Self.previewWidth, h = Self.previewHeight, bpr = w * 4
+        guard let blit = cb.makeBlitCommandEncoder() else { completion(nil); return }
+        blit.copy(from: target, sourceSlice: 0, sourceLevel: 0, sourceOrigin: MTLOrigin(x: 0, y: 0, z: 0),
+                  sourceSize: MTLSize(width: w, height: h, depth: 1), to: buf, destinationOffset: 0,
+                  destinationBytesPerRow: bpr, destinationBytesPerImage: bpr * h)
+        blit.endEncoding()
+        cb.addCompletedHandler { _ in
+            completion(Self.image(from: buf, width: w, height: h))
+        }
+    }
+
+    // MARK: - Read back (tests, stills)
 
     /// Copy `output` into a CPU image after `cb` completes; `completion` runs on a Metal thread.
     public func encodeReadback(into cb: MTLCommandBuffer, completion: @escaping (CGImage?) -> Void) {
@@ -231,12 +287,13 @@ public final class MetalCompositor {
         return buf
     }
 
-    private static func image(from buf: MTLBuffer) -> CGImage? {
-        let bpr = GraphicRenderer.width * 4
-        let data = Data(bytes: buf.contents(), count: buf.length)
+    private static func image(from buf: MTLBuffer, width: Int = GraphicRenderer.width,
+                              height: Int = GraphicRenderer.height) -> CGImage? {
+        let bpr = width * 4
+        let data = Data(bytes: buf.contents(), count: bpr * height)   // copy: the buffer gets reused
         let info = CGImageAlphaInfo.premultipliedFirst.rawValue | CGBitmapInfo.byteOrder32Little.rawValue
         return CGDataProvider(data: data as CFData).flatMap {
-            CGImage(width: GraphicRenderer.width, height: GraphicRenderer.height, bitsPerComponent: 8, bitsPerPixel: 32,
+            CGImage(width: width, height: height, bitsPerComponent: 8, bitsPerPixel: 32,
                     bytesPerRow: bpr, space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: CGBitmapInfo(rawValue: info),
                     provider: $0, decode: nil, shouldInterpolate: false, intent: .defaultIntent)
         }

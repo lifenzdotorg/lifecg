@@ -3,26 +3,6 @@ import CoreText
 import Foundation
 import ImageIO
 
-/// Look of the lower third. Defaults reproduce the original LIFE NodeCG graphic
-/// (measured from docs/reference-composite.png at 1920×1080).
-public struct GraphicStyle: Codable, Equatable, Sendable {
-    /// PostScript names, tried in order. Neuzeit Grotesk is the brand font; it is
-    /// commercial so it is NOT bundled — install it on the CG Mac.
-    public var titleFonts = ["NeuzeitGro-Bol", "NeuzeitGrotesk-Bold", "AvenirNext-Bold", "HelveticaNeue-Bold"]
-    public var designationFonts = ["NeuzeitGro-Reg", "NeuzeitGrotesk-Regular", "AvenirNext-Regular", "HelveticaNeue"]
-    /// Text is sized by cap height (px) so fallback fonts keep the same visual size.
-    public var titleCapHeight: Double = 39.5
-    public var designationCapHeight: Double = 23.5
-    /// Letter spacing in em.
-    public var titleTracking: Double = 0.0675
-    public var designationTracking: Double = 0.0923
-    /// Nudge the whole graphic (px, +x right, +y down).
-    public var offsetX: Double = 0
-    public var offsetY: Double = 0
-
-    public init() {}
-}
-
 /// How the graphic animates on or off (chosen separately for each direction).
 public enum Transition: String, Codable, CaseIterable, Sendable {
     /// Bars wipe in from the right, then the text fades in (the original NodeCG look).
@@ -57,6 +37,7 @@ public enum Transition: String, Codable, CaseIterable, Sendable {
 /// Where everything sits for one title. CoreGraphics coordinates (origin bottom-left,
 /// y up), before `GraphicStyle.offsetX/Y` is applied.
 public struct GraphicLayout {
+    public let anchor: Theme.Anchor
     public let titleBox: CGRect
     public let titleLine: CTLine
     public let titleTextOrigin: CGPoint
@@ -87,39 +68,26 @@ public struct FramePlan {
 
 /// Renders the lower third into a 1920×1080 premultiplied BGRA bitmap (CPU path, used
 /// for stills, tests and as the reference), and rasterises the separate pieces that the
-/// GPU compositor animates in real time.
+/// GPU compositor animates in real time. All geometry, colours and fonts come from the
+/// current `Theme`.
 public final class GraphicRenderer {
     public static let width = 1920
     public static let height = 1080
+    /// Room around a box for its drop shadow when rasterised as a piece.
+    static let shadowMargin = 40.0
 
-    // Geometry in top-left pixel coordinates (from the reference composite).
-    enum G {
-        static let titleBoxRight = 1795.0, titleBoxTop = 918.0, titleBoxBottom = 993.0
-        static let titlePadLeft = 23.0, titlePadRight = 26.0, titleBaseline = 972.5
-        static let desigBoxRight = 1806.0, desigBoxTop = 993.0, desigBoxBottom = 1047.0
-        static let desigPadLeft = 30.0, desigPadRight = 53.0, desigBaseline = 1030.5
-        static let minLeft = 40.0
-        /// Room around a box for its drop shadow when rasterised as a piece.
-        static let shadowMargin = 40.0
-    }
-
-    static let titleBoxColor = CGColor(srgbRed: 0.992, green: 0.992, blue: 0.992, alpha: 0.91)
-    static let desigBoxColor = CGColor(srgbRed: 0.141, green: 0.141, blue: 0.141, alpha: 0.93)
-    static let titleTextColor = CGColor(srgbRed: 0.133, green: 0.133, blue: 0.133, alpha: 1)
-    static let desigTextColor = CGColor(srgbRed: 1, green: 1, blue: 1, alpha: 1)
-
-    public var style: GraphicStyle { didSet { fontCache.removeAll() } }
+    public var theme: LoadedTheme { didSet { fontCache.removeAll() } }
+    /// Nudge the whole graphic (px, +x right, +y down). Operator setting, not part of the theme.
+    public var offset: CGPoint = .zero
 
     public let context: CGContext
-    let plusLayer: CGImage?
-    let gradientLayer: CGImage?
+    var backgroundLayer: CGImage? { theme.background }
+    var foregroundLayer: CGImage? { theme.foreground }
     private var fontCache: [String: CTFont] = [:]
 
-    public init(style: GraphicStyle = GraphicStyle()) {
-        self.style = style
+    public init(theme: LoadedTheme = .builtInLife) {
+        self.theme = theme
         context = Self.makeContext(width: Self.width, height: Self.height)
-        plusLayer = Self.loadImage("plus-layer")
-        gradientLayer = Self.loadImage("gradient-layer")
     }
 
     static func makeContext(width: Int, height: Int) -> CGContext {
@@ -139,33 +107,46 @@ public final class GraphicRenderer {
     /// Names of the fonts actually in use (for the UI, so operators can see a fallback).
     /// Doesn't touch the font cache, so it's safe to call from any thread.
     public func resolvedFontNames() -> (title: String, designation: String) {
-        (CTFontCopyPostScriptName(Self.resolveFont(style.titleFonts)) as String,
-         CTFontCopyPostScriptName(Self.resolveFont(style.designationFonts)) as String)
+        let t = theme.theme
+        return (CTFontCopyPostScriptName(Self.resolveFont(t.title.fonts)) as String,
+                CTFontCopyPostScriptName(Self.resolveFont((t.designation ?? t.title).fonts)) as String)
+    }
+
+    /// True when the first font listed for each bar is installed (no fallback in use).
+    public func preferredFontsInstalled() -> Bool {
+        let t = theme.theme
+        let names = [t.title.fonts.first, t.designation?.fonts.first].compactMap { $0 }
+        return names.allSatisfy { (CTFontCopyPostScriptName(CTFontCreateWithName($0 as CFString, 12, nil)) as String) == $0 }
     }
 
     // MARK: - Layout and frame plan
 
-    public func layout(title: String, designation: String) -> GraphicLayout {
-        let tLine = makeLine(title, fonts: style.titleFonts, cap: style.titleCapHeight, tracking: style.titleTracking,
-                             color: Self.titleTextColor,
-                             maxInkWidth: G.titleBoxRight - G.titlePadRight - G.titlePadLeft - G.minLeft)
-        let tInk = CTLineGetImageBounds(tLine, nil)
-        let tBox = rect(left: G.titleBoxRight - G.titlePadRight - tInk.width - G.titlePadLeft,
-                        top: G.titleBoxTop, right: G.titleBoxRight, bottom: G.titleBoxBottom)
-        let tOrigin = CGPoint(x: G.titleBoxRight - G.titlePadRight - tInk.maxX, y: cgY(G.titleBaseline))
+    /// Box and text placement for one bar holding `text`.
+    func barLayout(_ bar: Theme.Bar, text: String, anchor: Theme.Anchor, edgeMargin: Double)
+        -> (box: CGRect, line: CTLine, origin: CGPoint) {
+        let W = Double(Self.width)
+        let maxInk = anchor == .right
+            ? bar.anchorX - bar.padOuter - bar.padInner - edgeMargin
+            : (W - edgeMargin) - bar.anchorX - bar.padOuter - bar.padInner
+        let line = makeLine(bar.uppercase ? text.uppercased() : text, fonts: bar.fonts, cap: bar.capHeight,
+                            tracking: bar.tracking, color: .hex(bar.textColor), maxInkWidth: max(maxInk, 50))
+        let ink = CTLineGetImageBounds(line, nil)
+        let width = bar.padOuter + ink.width + bar.padInner
+        let left = anchor == .right ? bar.anchorX - width : bar.anchorX
+        let box = rect(left: left, top: bar.top, right: left + width, bottom: bar.bottom)
+        let originX = anchor == .right ? bar.anchorX - bar.padOuter - ink.maxX : bar.anchorX + bar.padOuter - ink.minX
+        return (box, line, CGPoint(x: originX, y: cgY(bar.baseline)))
+    }
 
+    public func layout(title: String, designation: String) -> GraphicLayout {
+        let t = theme.theme
+        let tl = barLayout(t.title, text: title, anchor: t.anchor, edgeMargin: t.edgeMargin)
         var dBox: CGRect?, dLine: CTLine?, dOrigin = CGPoint.zero
-        if !designation.isEmpty {
-            let l = makeLine(designation, fonts: style.designationFonts, cap: style.designationCapHeight,
-                             tracking: style.designationTracking, color: Self.desigTextColor,
-                             maxInkWidth: G.desigBoxRight - G.desigPadRight - G.desigPadLeft - G.minLeft)
-            let ink = CTLineGetImageBounds(l, nil)
-            dLine = l
-            dBox = rect(left: G.desigBoxRight - G.desigPadRight - ink.width - G.desigPadLeft,
-                        top: G.desigBoxTop, right: G.desigBoxRight, bottom: G.desigBoxBottom)
-            dOrigin = CGPoint(x: G.desigBoxRight - G.desigPadRight - ink.maxX, y: cgY(G.desigBaseline))
+        if !designation.isEmpty, let bar = t.designation {
+            let dl = barLayout(bar, text: designation, anchor: t.anchor, edgeMargin: t.edgeMargin)
+            dBox = dl.box; dLine = dl.line; dOrigin = dl.origin
         }
-        return GraphicLayout(titleBox: tBox, titleLine: tLine, titleTextOrigin: tOrigin,
+        return GraphicLayout(anchor: t.anchor, titleBox: tl.box, titleLine: tl.line, titleTextOrigin: tl.origin,
                              desigBox: dBox, desigLine: dLine, desigTextOrigin: dOrigin)
     }
 
@@ -174,16 +155,17 @@ public final class GraphicRenderer {
         let p = transition == .cut ? 1 : min(max(progress, 0), 1)
         var gradA = 1.0, plusA = 1.0, titleR = 1.0, desigR = 1.0, textA = 1.0
         var titleS = 0.0, desigS = 0.0, plusShift = 0.0, globalA = 1.0
+        let side: Double = layout.anchor == .right ? 1 : -1   // motion comes from the anchored side
         switch transition {
         case .slideBoxFadeText:
             gradA = ease(seg(p, 0.0, 0.5))
-            plusA = ease(seg(p, 0.1, 0.55)); plusShift = (1 - plusA) * 24
+            plusA = ease(seg(p, 0.1, 0.55)); plusShift = (1 - plusA) * 24 * side
             titleR = easeOutCubic(seg(p, 0.15, 0.7))
             desigR = easeOutCubic(seg(p, 0.3, 0.85))
             textA = seg(p, 0.45, 1.0)
         case .slideBoxAndText:
             gradA = ease(seg(p, 0.0, 0.5))
-            plusA = ease(seg(p, 0.0, 0.4)); plusShift = (1 - plusA) * 24
+            plusA = ease(seg(p, 0.0, 0.4)); plusShift = (1 - plusA) * 24 * side
             titleS = 1 - easeOutCubic(seg(p, 0.1, 0.8))
             desigS = 1 - easeOutCubic(seg(p, 0.25, 1.0))
         case .fade:
@@ -192,8 +174,8 @@ public final class GraphicRenderer {
             break
         }
         func piece(_ box: CGRect, reveal: Double, slide: Double) -> FramePlan.Piece {
-            let clip = slide > 0 ? slideClip(box) : revealRect(box, reveal)
-            return .init(visible: reveal > 0 && slide < 1, clip: clip, dx: slide * (box.width + 24), textAlpha: textA)
+            let clip = slide > 0 ? slideClip(box, layout.anchor) : revealRect(box, reveal, layout.anchor)
+            return .init(visible: reveal > 0 && slide < 1, clip: clip, dx: slide * (box.width + 24) * side, textAlpha: textA)
         }
         let t = piece(layout.titleBox, reveal: titleR, slide: titleS)
         let d = layout.desigBox.map { piece($0, reveal: desigR, slide: desigS) }
@@ -223,36 +205,37 @@ public final class GraphicRenderer {
         let plan = Self.plan(lay, progress: progress, transition: transition)
 
         ctx.saveGState()
-        ctx.translateBy(x: style.offsetX, y: -style.offsetY)
+        ctx.translateBy(x: offset.x, y: -offset.y)
         if plan.globalAlpha < 1 {
             ctx.setAlpha(plan.globalAlpha)
             ctx.beginTransparencyLayer(auxiliaryInfo: nil)   // fade the composite, not each layer
         }
         let full = CGRect(x: 0, y: 0, width: Self.width, height: Self.height)
-        if let gradientLayer, plan.gradientAlpha > 0 {
-            ctx.saveGState(); ctx.setAlpha(plan.gradientAlpha); ctx.draw(gradientLayer, in: full); ctx.restoreGState()
+        if let backgroundLayer, plan.gradientAlpha > 0 {
+            ctx.saveGState(); ctx.setAlpha(plan.gradientAlpha); ctx.draw(backgroundLayer, in: full); ctx.restoreGState()
         }
-        drawPiece(ctx, plan.title, box: lay.titleBox, color: Self.titleBoxColor, line: lay.titleLine, origin: lay.titleTextOrigin)
-        if let dBox = lay.desigBox, let dLine = lay.desigLine {
-            drawPiece(ctx, plan.desig, box: dBox, color: Self.desigBoxColor, line: dLine, origin: lay.desigTextOrigin)
+        let t = theme.theme
+        drawPiece(ctx, plan.title, box: lay.titleBox, bar: t.title, line: lay.titleLine, origin: lay.titleTextOrigin)
+        if let dBox = lay.desigBox, let dLine = lay.desigLine, let bar = t.designation {
+            drawPiece(ctx, plan.desig, box: dBox, bar: bar, line: dLine, origin: lay.desigTextOrigin)
         }
-        if let plusLayer, plan.plusAlpha > 0 {
+        if let foregroundLayer, plan.plusAlpha > 0 {
             ctx.saveGState()
             ctx.setAlpha(plan.plusAlpha)
             ctx.translateBy(x: plan.plusShift, y: 0)
-            ctx.draw(plusLayer, in: full)
+            ctx.draw(foregroundLayer, in: full)
             ctx.restoreGState()
         }
         if plan.globalAlpha < 1 { ctx.endTransparencyLayer() }
         ctx.restoreGState()
     }
 
-    private func drawPiece(_ ctx: CGContext, _ piece: FramePlan.Piece, box: CGRect, color: CGColor, line: CTLine, origin: CGPoint) {
+    private func drawPiece(_ ctx: CGContext, _ piece: FramePlan.Piece, box: CGRect, bar: Theme.Bar, line: CTLine, origin: CGPoint) {
         guard piece.visible else { return }
         ctx.saveGState()
         ctx.clip(to: piece.clip)
         ctx.translateBy(x: piece.dx, y: 0)
-        Self.drawBox(ctx, box, color: color)
+        Self.drawBox(ctx, box, bar: bar)
         if piece.textAlpha > 0 {
             ctx.setAlpha(piece.textAlpha)
             ctx.textPosition = origin
@@ -261,10 +244,12 @@ public final class GraphicRenderer {
         ctx.restoreGState()
     }
 
-    static func drawBox(_ ctx: CGContext, _ box: CGRect, color: CGColor) {
+    static func drawBox(_ ctx: CGContext, _ box: CGRect, bar: Theme.Bar) {
         ctx.saveGState()
-        ctx.setShadow(offset: CGSize(width: 0, height: -4), blur: 18, color: CGColor(gray: 0, alpha: 0.22))
-        ctx.setFillColor(color)
+        if let sh = bar.shadow {
+            ctx.setShadow(offset: CGSize(width: 0, height: -sh.offsetY), blur: sh.blur, color: CGColor(gray: 0, alpha: sh.opacity))
+        }
+        ctx.setFillColor(.hex(bar.color))
         ctx.fill(box)
         ctx.restoreGState()
     }
@@ -289,9 +274,10 @@ public final class GraphicRenderer {
     /// Rasterise one title's boxes and text once; the compositor then animates them on the GPU.
     public func sprites(title: String, designation: String) -> SpriteSet {
         let lay = layout(title: title, designation: designation)
-        func boxSprite(_ box: CGRect, _ color: CGColor) -> Sprite {
-            let r = box.insetBy(dx: -G.shadowMargin, dy: -G.shadowMargin).integral
-            return Self.rasterize(r) { ctx in Self.drawBox(ctx, box, color: color) }
+        let t = theme.theme
+        func boxSprite(_ box: CGRect, _ bar: Theme.Bar) -> Sprite {
+            let r = box.insetBy(dx: -Self.shadowMargin, dy: -Self.shadowMargin).integral
+            return Self.rasterize(r) { ctx in Self.drawBox(ctx, box, bar: bar) }
         }
         func textSprite(_ line: CTLine, _ origin: CGPoint) -> Sprite {
             let ink = CTLineGetImageBounds(line, nil)
@@ -300,9 +286,9 @@ public final class GraphicRenderer {
         }
         return SpriteSet(
             layout: lay,
-            titleBox: boxSprite(lay.titleBox, Self.titleBoxColor),
+            titleBox: boxSprite(lay.titleBox, t.title),
             titleText: textSprite(lay.titleLine, lay.titleTextOrigin),
-            desigBox: lay.desigBox.map { boxSprite($0, Self.desigBoxColor) },
+            desigBox: lay.desigBox.flatMap { box in t.designation.map { boxSprite(box, $0) } },
             desigText: lay.desigLine.map { textSprite($0, lay.desigTextOrigin) })
     }
 
@@ -338,14 +324,18 @@ public final class GraphicRenderer {
 
     /// While sliding, content is masked at the box's right edge so it appears to emerge
     /// from behind the plus ornaments (shadow room kept on the other sides).
-    static func slideClip(_ box: CGRect) -> CGRect {
-        CGRect(x: box.minX - 30, y: box.minY - 30, width: box.width + 30, height: box.height + 60)
+    static func slideClip(_ box: CGRect, _ anchor: Theme.Anchor) -> CGRect {
+        anchor == .right
+            ? CGRect(x: box.minX - 30, y: box.minY - 30, width: box.width + 30, height: box.height + 60)
+            : CGRect(x: box.minX, y: box.minY - 30, width: box.width + 30, height: box.height + 60)
     }
 
-    /// Wipe in from the right edge.
-    static func revealRect(_ r: CGRect, _ amount: Double) -> CGRect {
+    /// Wipe in from the anchored edge.
+    static func revealRect(_ r: CGRect, _ amount: Double, _ anchor: Theme.Anchor) -> CGRect {
         let w = (r.width + 20) * amount
-        return CGRect(x: r.maxX - w, y: r.minY - 30, width: w + 30, height: r.height + 60)
+        return anchor == .right
+            ? CGRect(x: r.maxX - w, y: r.minY - 30, width: w + 30, height: r.height + 60)
+            : CGRect(x: r.minX - 30, y: r.minY - 30, width: w + 30, height: r.height + 60)
     }
 
     static func seg(_ p: Double, _ a: Double, _ b: Double) -> Double { min(max((p - a) / (b - a), 0), 1) }
@@ -387,9 +377,4 @@ public final class GraphicRenderer {
         return (w > maxInkWidth && w > 0) ? build(cap * maxInkWidth / w * 0.995) : line
     }
 
-    static func loadImage(_ name: String) -> CGImage? {
-        guard let url = Resources.url(name, ext: "png"),
-              let src = CGImageSourceCreateWithURL(url as CFURL, nil) else { return nil }
-        return CGImageSourceCreateImageAtIndex(src, 0, nil)
-    }
 }

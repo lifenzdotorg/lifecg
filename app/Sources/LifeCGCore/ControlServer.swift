@@ -16,6 +16,8 @@ public final class ControlServer {
     public private(set) var clients: [ClientInfo] = []
     public var onClientsChanged: (([ClientInfo]) -> Void)?
     public var onLog: ((String) -> Void)?
+    /// A client asked to switch theme; return false if the id is unknown.
+    public var onSetTheme: ((String) -> Bool)?
 
     private let store: TitleStore
     private var listener: NWListener?
@@ -119,6 +121,8 @@ public final class ControlServer {
         case ("POST", "/api/hide"): store.hide(); ok()
         case ("POST", "/api/toggle"): store.toggle(); ok()
         case ("POST", "/api/recent/clear"): store.clearRecent(); ok()
+        case ("POST", "/api/theme"):
+            if onSetTheme?(body["id"] as? String ?? "") == true { ok() } else { bad("Unknown theme") }
         case ("POST", "/sistas21/remote/speakertitle"):
             // Legacy NodeCG-compatible endpoint used by the old Companion module.
             if (body["action"] as? String) == "go" {
@@ -155,6 +159,9 @@ public final class ControlServer {
             case "toggle": store.toggle()
             case "removeRecent": store.removeRecent(id: obj["id"] as? String ?? "")
             case "clearRecent": store.clearRecent()
+            case "setTheme":
+                let id = obj["id"] as? String ?? ""
+                if onSetTheme?(id) != true { err("Unknown theme: \(id)") }
             case "ping": c.sendText(#"{"type":"pong"}"#)
             default: err("Unknown message type: \(type)")
             }

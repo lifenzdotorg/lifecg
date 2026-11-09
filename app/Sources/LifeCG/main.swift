@@ -22,6 +22,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         window.delegate = self
         window.center()
         window.makeKeyAndOrderFront(nil)
+        // Previews cost GPU→CPU copies; only make them while the window is actually visible.
+        NotificationCenter.default.addObserver(forName: NSWindow.didChangeOcclusionStateNotification, object: window,
+                                               queue: .main) { [weak self] _ in self?.updatePreviewVisibility() }
+        updatePreviewVisibility()
 
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         statusItem.button?.image = Self.menuBarIcon()
@@ -42,10 +46,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     @objc func showWindow() {
         window.makeKeyAndOrderFront(nil)
+        updatePreviewVisibility()
         NSApp.activate(ignoringOtherApps: true)
     }
 
     @objc func hideTitle() { model.hide() }
+
+    func windowWillClose(_ notification: Notification) {
+        model.animator.setPreviewEnabled(false)
+    }
+
+    private func updatePreviewVisibility() {
+        model.animator.setPreviewEnabled(window.isVisible && window.occlusionState.contains(.visible))
+    }
 
     /// Menu bar glyph matching the app icon: the outlined plus with the small solid plus.
     /// Template image, so macOS tints it for light/dark menu bars.

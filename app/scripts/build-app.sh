@@ -39,8 +39,8 @@ done
 
 echo "==> lt-render (native arch)"
 swiftc -O -swift-version 5 -target "$(uname -m)-apple-macos$MIN_OS" -module-name lt_render \
-  "${CORE[@]}" "$APP_DIR/Sources/lt-render/main.swift" -o "$OUT/lt-render"
-cp "$APP_DIR"/Sources/LifeCGCore/Resources/*.png "$OUT/"
+  "${CORE[@]}" "$APP_DIR"/Sources/lt-render/*.swift -o "$OUT/lt-render"
+rm -rf "$OUT/Themes" && cp -R "$APP_DIR/Themes" "$OUT/Themes"
 swiftc -O -swift-version 5 -target "$(uname -m)-apple-macos$MIN_OS" -I "$OUT/syphon/include" -L "$OUT/syphon" -lSyphon \
   -framework Metal -framework IOSurface -framework OpenGL -framework CoreVideo -framework Cocoa \
   "$APP_DIR/Tools/syphon-grab.swift" -o "$OUT/syphon-grab"
@@ -50,7 +50,7 @@ APP="$OUT/LifeCG.app"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 lipo -create "${bins[@]}" -output "$APP/Contents/MacOS/LifeCG"
 sed -e "s/__VERSION__/$VERSION/" -e "s/__BUILD__/$BUILD/" "$APP_DIR/Support/Info.plist" > "$APP/Contents/Info.plist"
-cp "$APP_DIR"/Sources/LifeCGCore/Resources/*.png "$APP/Contents/Resources/"
+cp -R "$APP_DIR/Themes" "$APP/Contents/Resources/Themes"
 [ -f "$APP_DIR/Support/AppIcon.icns" ] && cp "$APP_DIR/Support/AppIcon.icns" "$APP/Contents/Resources/"
 printf 'APPL????' > "$APP/Contents/PkgInfo"
 

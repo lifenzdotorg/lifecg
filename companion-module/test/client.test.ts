@@ -193,6 +193,33 @@ describe('LifeCGClient against the mock server', () => {
 		expect(def2.options.find((o) => o.id === 'autoClear')?.label).toBe('Auto clear after 5 seconds')
 	})
 
+	it('Set Theme lists the app\'s themes, sends setTheme, and Theme is Active follows state', async () => {
+		srv.state.theme = 'life'
+		srv.state.themes = [{ id: 'life', name: 'LIFE' }, { id: 'north', name: 'North Campus' }]
+		const t = setup(srv)
+		clients.push(t.client)
+		t.client.start()
+		await waitFor(() => t.client.isConnected && t.client.state.themes.length === 2)
+		const def = t.actions().set_theme as { options: { id: string; choices?: { id: string; label: string }[] }[] }
+		expect(def.options[0].choices).toEqual([{ id: 'life', label: 'LIFE' }, { id: 'north', label: 'North Campus' }])
+
+		await t.run('set_theme', { theme: 'north' })
+		await waitFor(() => srv.received.at(-1)?.type === 'setTheme')
+		expect(srv.received.at(-1)).toEqual({ type: 'setTheme', id: 'north' })
+
+		const before = srv.received.length
+		await t.run('set_theme', { theme: 'nope' })
+		await new Promise((r) => setTimeout(r, 50))
+		expect(srv.received.length).toBe(before)
+
+		// The app switched (the mock applies setTheme and broadcasts), so the feedback follows
+		await waitFor(() => t.client.state.theme === 'north')
+		const fb = buildFeedbackDefinitions(() => t.client.state).theme_active as { callback: (f: unknown, c: unknown) => unknown }
+		expect(await fb.callback({ options: { theme: 'north' } } as never, {} as never)).toBe(true)
+		expect(await fb.callback({ options: { theme: 'life' } } as never, {} as never)).toBe(false)
+		expect(stateToVariables(t.client.state).theme).toBe('North Campus')
+	})
+
 	it('falls back gracefully on a stale recent id and an empty custom title', async () => {
 		const t = setup(srv)
 		clients.push(t.client)
