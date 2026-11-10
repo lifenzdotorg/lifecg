@@ -70,11 +70,13 @@ export function splitUnits(units: Verse[], maxLines: number, ctx: SplitContext):
     .filter((u) => u.text.trim() || u.n !== null)
     .map((u) => ({ n: u.n, words: u.text.split(/\s+/).filter(Boolean), cont: false, cut: false }));
 
-  const finalText = (pieces: Piece[], last: boolean) => lastSpaceToNbsp(renderBody(pieces, carried, !last).text);
+  // Quote marks are balanced on every slide, the last one too: a passage often stops while someone is still
+  // speaking (Matthew 7:13-14, Jeremiah 31:33), so its closing mark isn't in the text.
+  const finalText = (pieces: Piece[], _last: boolean) => lastSpaceToNbsp(renderBody(pieces, carried, true).text);
   const fits = (pieces: Piece[], last: boolean) => lines(finalText(pieces, last)) <= maxLines;
   const close = (last: boolean) => {
     if (!cur.length) return;
-    const r = renderBody(cur, carried, !last);
+    const r = renderBody(cur, carried, true);
     bodies.push(lastSpaceToNbsp(r.text));
     carried = last ? [] : r.open;
     cur = [];
@@ -161,7 +163,9 @@ export function splitQuote(block: Block, ctx: SplitContext): Slide[] {
 
 /** A point: exactly as typed, all bold; big if it fits one line at the big size. */
 export function pointSlide(block: Block, ctx: SplitContext): Slide {
-  const text = block.text.replace(/\u00a0/g, ' ');
+  // The wording is kept exactly; line breaks in a pasted point come from where the PDF or email wrapped it,
+  // so the point reflows (it's split into slides by hand if it ever needs two).
+  const text = block.text.replace(/\u00a0/g, ' ').replace(/[ \t]*\n[ \t]*/g, ' ').replace(/ {2,}/g, ' ').trim();
   const oneLine = !text.includes('\n') && countLines([{ t: text, b: true }], ctx.big.width, ctx.big, ctx.measure) === 1;
   const runs: Run[] = [{ t: text, b: true }];
   return {

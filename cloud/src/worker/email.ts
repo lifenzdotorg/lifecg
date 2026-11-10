@@ -1,7 +1,6 @@
 // PDF email via the Cloudflare Email Service `send_email` binding.
 import { formatServiceDate } from '../../shared/time';
 import type { Bindings } from './env';
-import { base64 } from './util';
 
 export interface NotesEmail {
   to: string[];
@@ -68,10 +67,12 @@ ${e.notesLink ? `<p><b>Notes</b>: the speaker’s full notes are too large to at
     text: lines.join('\n'),
     html,
     attachments: [
-      // base64 string content: works in the local simulator and in production
-      { content: base64(e.pdf), filename: e.pdfName, type: 'application/pdf', disposition: 'attachment' as const },
-      ...(e.probundle ? [{ content: base64(e.probundle.bytes), filename: e.probundle.name, type: 'application/zip', disposition: 'attachment' as const }] : []),
-      ...(e.notes ? [{ content: base64(e.notes.bytes), filename: e.notes.name, type: e.notes.type, disposition: 'attachment' as const }] : []),
+      // Raw bytes. (A base64 string arrived as base64 *text* for non-PDF types: Outlook saved a .probundle
+      // full of `UEsDB…`. The local simulator can't send binary, but local dev runs with EMAIL_DRY_RUN=1.)
+      { content: e.pdf, filename: e.pdfName, type: 'application/pdf', disposition: 'attachment' as const },
+      // A .probundle is a zip inside, but labelled as one, mail apps and attachment scanners unpack or rewrap it.
+      ...(e.probundle ? [{ content: e.probundle.bytes, filename: e.probundle.name, type: 'application/octet-stream', disposition: 'attachment' as const }] : []),
+      ...(e.notes ? [{ content: e.notes.bytes, filename: e.notes.name, type: e.notes.type, disposition: 'attachment' as const }] : []),
     ],
   };
 }

@@ -236,12 +236,7 @@ export function buildPresentation(input: BundleInput): { pro: Uint8Array; files:
     return { kind: 'rect' as const, rect: l.rect, colour: l.color ?? '#000000', opacity: l.opacity ?? 1 };
   });
 
-  const cues = input.slides.map((s) => {
-    // ProPresenter draws the first element on top: text, then the theme layers from top to bottom.
-    const elements = [
-      textElement(s, theme, uuid),
-      ...[...layers].reverse().map((l) => (l.kind === 'image' ? imageElement(l.rect, l.file, uuid) : shapeElement(l.rect, l.colour, l.opacity, uuid))),
-    ];
+  const cue = (elements: unknown[]) => {
     return {
       uuid: { string: uuid() },
       completion_action_type: 'COMPLETION_ACTION_TYPE_LAST',
@@ -261,7 +256,16 @@ export function buildPresentation(input: BundleInput): { pro: Uint8Array; files:
       ],
       isEnabled: true,
     };
-  });
+  };
+  // ProPresenter draws the first element on top: text, then the theme layers from top to bottom.
+  const slideCue = (s: Slide) =>
+    cue([
+      textElement(s, theme, uuid),
+      ...[...layers].reverse().map((l) => (l.kind === 'image' ? imageElement(l.rect, l.file, uuid) : shapeElement(l.rect, l.colour, l.opacity, uuid))),
+    ]);
+  // LIFE rule: an empty slide first and last. The operator takes the first one as the speaker walks on, so
+  // the confidence monitor shows the speaker their first slide as "next" without anything on screen yet.
+  const cues = [cue([]), ...input.slides.map(slideCue), cue([])];
 
   const obj = {
     application_info: {

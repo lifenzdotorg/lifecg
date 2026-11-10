@@ -462,7 +462,7 @@ api.put('/services/:id/versions/:v/probundle', async (c) => {
   name = name.replace(/[\/:*?"<>|]+/g, ' ').trim().slice(0, 150) || 'Speaker Notes.probundle';
   if (!/\.probundle$/i.test(name)) name += '.probundle';
   const key = `probundles/${id}/v${version}.probundle`;
-  await c.env.PRIVATE.put(key, bytes, { httpMetadata: { contentType: 'application/zip' } });
+  await c.env.PRIVATE.put(key, bytes, { httpMetadata: { contentType: 'application/octet-stream' } });
   await c.env.DB.prepare('UPDATE service_notes SET probundle_key = ?, probundle_name = ? WHERE service_id = ? AND version = ?').bind(key, name, id, version).run();
   return c.json({ ok: true, name });
 });
@@ -472,7 +472,7 @@ api.get('/services/:id/versions/:v/probundle', async (c) => {
     .bind(c.req.param('id'), Number(c.req.param('v')))
     .first<{ probundle_key: string | null; probundle_name: string | null }>();
   if (!row?.probundle_key) return c.json({ error: 'No ProPresenter bundle' }, 404);
-  return sendStored(c, row.probundle_key, row.probundle_name ?? 'Speaker Notes.probundle', 'application/zip', true);
+  return sendStored(c, row.probundle_key, row.probundle_name ?? 'Speaker Notes.probundle', 'application/octet-stream', true);
 });
 
 // PDF for a pushed version: stored in R2, then emailed.

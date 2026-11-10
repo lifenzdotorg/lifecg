@@ -28,9 +28,11 @@ describe('.probundle export', () => {
 
     const p = decodePresentation(files['2026 11 15 II CENTRAL PM II Erin Manners - Psalms Intro.pro']) as any;
     expect(p.name).toBe('2026 11 15 II CENTRAL PM II Erin Manners - Psalms Intro');
-    expect(p.cues).toHaveLength(2);
+    // an empty slide first and last, the two content slides between
+    expect(p.cues).toHaveLength(4);
+    for (const i of [0, 3]) expect(p.cues[i].actions[0].slide.presentation.base_slide.elements ?? []).toHaveLength(0);
     expect(p.cue_groups[0].cue_identifiers.map((c: any) => c.string)).toEqual(p.cues.map((c: any) => c.uuid.string));
-    const els = p.cues[0].actions[0].slide.presentation.base_slide.elements;
+    const els = p.cues[1].actions[0].slide.presentation.base_slide.elements;
     expect(els[0].element.name).toBe('Text');
     expect(els[0].element.bounds.origin.y).toBeCloseTo(753.138, 2);
     expect(els[0].element.text.vertical_alignment).toBe('VERTICAL_ALIGNMENT_BOTTOM');
@@ -39,7 +41,7 @@ describe('.probundle export', () => {
     // the .pro points at the image by the same path as its zip entry
     expect(decodeURIComponent(media.url.absolute_string)).toBe('file:///' + imageEntry);
     expect(media.url.local).toMatchObject({ root: 'ROOT_SHOW', path: 'Media/Assets/' + imageEntry.split('/').pop() });
-    const big = p.cues[1].actions[0].slide.presentation.base_slide.elements[0].element;
+    const big = p.cues[2].actions[0].slide.presentation.base_slide.elements[0].element;
     expect(big.bounds.origin.y).toBeCloseTo(953.637, 2);
     expect(big.text.attributes.font).toMatchObject({ name: 'NeuzeitGro-Bol', size: 75 });
   });
@@ -62,7 +64,7 @@ describe('.probundle export', () => {
       const { bytes } = buildProBundle({ name: 'Test', slides, theme: t, media: [{ src: 'background.png', bytes: background }] });
       const files = unzipSync(bytes);
       const p = decodePresentation(files['Test.pro']) as any;
-      const els = p.cues[0].actions[0].slide.presentation.base_slide.elements;
+      const els = p.cues[1].actions[0].slide.presentation.base_slide.elements;
       expect(els.length, t.id).toBe(1 + t.layers.length);
       if (t.id === 'west' || t.id === 'east-bg') {
         expect(els[1].element.fill.enable).toBe(true);

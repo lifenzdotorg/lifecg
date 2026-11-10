@@ -32,3 +32,18 @@ describe('push email recipients', () => {
     expect(emailRecipients([], null, ['pa@lifenz.org'])).toEqual({ to: ['pa@lifenz.org'], cc: [] });
   });
 });
+
+import { buildEmail } from '../src/worker/email';
+describe('push email attachments', () => {
+  it('are the exact bytes, not base64 text (Outlook saved a .probundle full of "UEsDB…")', () => {
+    const zip = new Uint8Array([0x50, 0x4b, 0x03, 0x04, 1, 2, 3]);
+    const pdf = new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d]);
+    const msg = buildEmail({} as never, {
+      to: ['pm@lifenz.org'], title: 'T', speaker: 'S', serviceLabel: 'Central AM', startsAt: '2026-11-15T09:30:00+13:00', version: 1,
+      pushedBy: 'pa@lifenz.org', slideCount: 3, portalUrl: 'https://notes.example/', pdf, pdfName: 'a.pdf',
+      probundle: { bytes: zip, name: 'a.probundle' }, notes: { bytes: pdf, name: 'n.pdf', type: 'application/pdf' },
+    });
+    expect(msg.attachments.map((a) => a.content)).toEqual([pdf, zip, pdf]);
+    expect(msg.attachments[1]).toMatchObject({ filename: 'a.probundle', type: 'application/octet-stream' });
+  });
+});

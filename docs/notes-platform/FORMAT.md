@@ -114,7 +114,9 @@ For campuses still building notes in ProPresenter 7, a push can email a `.probun
 `Media/Assets/<file>` under the show root, as ProPresenter's own exports do). Name:
 `YYYY MM DD II CAMPUS SERVICE II Speaker - Title`. One slide per portal slide: the text box (theme rect, font,
 size, tracking, line height, outline, shadow, vertical alignment; text as RTF with bold runs) above the theme's
-layers (image or semi-transparent rectangle). Only `.probundle`, never a bare `.pro` (that loses the background).
+layers (image or semi-transparent rectangle), plus an empty slide first and last (the operator takes the first
+when the speaker walks on, so their first slide shows as "next"). Sent as `application/octet-stream`: labelled
+as a zip, mail systems unpack or rewrap it. Only `.probundle`, never a bare `.pro` (that loses the background).
 
 ## Importing a document (portal)
 

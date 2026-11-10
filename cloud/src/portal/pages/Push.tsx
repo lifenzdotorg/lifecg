@@ -117,7 +117,7 @@ export function PushDialog({ messageId, initial, onClose }: { messageId: string;
             await api(`/services/${p.serviceId}/versions/${p.version}/probundle`, {
               method: 'PUT',
               raw: b.bytes as BodyInit,
-              contentType: 'application/zip',
+              contentType: 'application/octet-stream',
               headers: { 'X-File-Name': encodeURIComponent(b.fileName) },
             });
             upd({ state: 'pdf' });

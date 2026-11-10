@@ -108,3 +108,23 @@ describe('every slide starts with a capital', () => {
     for (const s of slides) expect(plainText(s.runs).split('\n')[1]).toMatch(/^\d+[  ](?:… )?[“"]?\p{Lu}/u);
   });
 });
+
+describe('fixes from the 15 Nov Central AM deck', () => {
+  const ctx = ctxFor(fixedMeasure());
+  const last = (src: string) => {
+    const s = buildSlides(parseBlocks(src), ctx);
+    return plainText(s[s.length - 1].runs);
+  };
+  it('closes a quote that is still open where the passage stops (slides 19 and 25)', () => {
+    expect(last('Matthew 7:13-14 (NIV)\n13 “Enter through the narrow gate. For wide is the gate and broad is the road that leads to\ndestruction, and many enter through it. 14 But small is the gate and narrow the road that\nleads to life, and only a few find it.')).toMatch(/find\u00a0it\.”$/);
+    expect(last('Jeremiah 31:33 (NIV)\n33 “This is the covenant I will make with the people of Israel\nafter that time,” declares the Lord.\n“I will put my law in their minds\nand write it on their hearts.\nI will be their God,\nand they will be my people')).toMatch(/my\u00a0people”$/);
+  });
+  it('leaves a quote alone when the text closes it', () => {
+    expect(last('John 14:21 (NIV)\n21 “Whoever has my commands and keeps them is the one who loves me.”')).not.toMatch(/””$/);
+  });
+  it('reflows a pasted point instead of keeping the copy’s line break (slide 23)', () => {
+    const [p] = buildSlides(parseBlocks('Practice the solution -What would it look like for me to delight in and meditate\non the word this week? '), ctx);
+    expect(plainText(p.runs)).not.toContain('\n');
+    expect(plainText(p.runs).replace(/\u00a0/g, ' ')).toBe('Practice the solution -What would it look like for me to delight in and meditate on the word this week?');
+  });
+});
