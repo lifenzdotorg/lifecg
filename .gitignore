@@ -5,3 +5,11 @@ app/Vendor/Syphon/.build/
 *.xcuserstate
 xcuserdata/
 dist/
+
+# Commercial fonts (Neuzeit Grotesk) must never be committed
+*.ttf
+*.otf
+cloud/.fonts/
+cloud/node_modules/
+cloud/.wrangler/
+cloud/.dev.vars

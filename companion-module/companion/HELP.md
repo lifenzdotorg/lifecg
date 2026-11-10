@@ -17,6 +17,8 @@ The module connects to `ws://host:port/ws` and reconnects automatically if the c
 - **Set Theme**: switch the look (themes are added in LifeCG.app's Themes tab). The **Theme is Active** feedback and the `theme` / `theme_id` variables follow it.
 - **Show Recent Title by position** (also has the auto-clear tickbox): 1 is the most recent title. Nothing happens if that position is empty.
 - **Hide Title**
+- **Hide Title** also takes the current speaker-notes slide off (when notes are running from the LifeCG control GUI).
+- **Clear All**: takes the title and the current notes slide off, and blanks "Next" on the speaker cue screen.
 - **Toggle Title**: hides the title if it's on air, otherwise shows the last title again.
 - **Clear Recent Titles**: empties the shared list on every connected Companion.
 - **Remove Recent Title**

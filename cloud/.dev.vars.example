@@ -1,0 +1,6 @@
+# Local development only. Copy to .dev.vars (gitignored).
+DEV_USER_EMAIL=dev.user@lifenz.org
+ADMIN_EMAILS=dev.user@lifenz.org
+EMAIL_DRY_RUN=1
+# Production sets this in wrangler.jsonc; empty locally so dev uses DEV_USER_EMAIL
+ACCESS_TEAM_DOMAIN=

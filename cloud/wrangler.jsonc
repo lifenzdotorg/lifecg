@@ -1,0 +1,38 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "lifecg-notes",
+  "main": "src/worker/index.ts",
+  "compatibility_date": "2026-05-01",
+  // Production is reached only through Cloudflare Access on the custom domain; no workers.dev URL.
+  "workers_dev": false,
+  "preview_urls": false,
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*", "/fonts/*", "/operator/*"]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "notes",
+      // Replace with the id printed by `wrangler d1 create notes` before deploying.
+      "database_id": "57ec6f1f-94d4-484c-8b94-3258935b034d",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "r2_buckets": [
+    // Private bucket: Neuzeit fonts (fonts/<name>.ttf) and pushed PDFs (pdfs/...). Never public.
+    { "binding": "PRIVATE", "bucket_name": "notes-private" }
+  ],
+  "send_email": [{ "name": "EMAIL" }],
+  "routes": [{ "pattern": "notes.prodapps.life", "custom_domain": true }],
+  "vars": {
+    "EMAIL_FROM": "notes@prodapps.life",
+    "EMAIL_FROM_NAME": "LIFE Speaker Notes",
+    "ACCESS_TEAM_DOMAIN": "lifeprodapps.cloudflareaccess.com"
+  },
+  // Set as secrets (not in this public repo): ADMIN_EMAILS, ACCESS_AUD
+  //   npx wrangler secret put ADMIN_EMAILS ; npx wrangler secret put ACCESS_AUD
+  "observability": { "enabled": true }
+}

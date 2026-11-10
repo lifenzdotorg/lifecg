@@ -1,0 +1,55 @@
+{
+  "id": "ns",
+  "name": "North + South",
+  "source": "LIFE Speaker Notes 2022 V6 - N + S.proTheme",
+  "canvas": [
+    1920,
+    1080
+  ],
+  "layers": [],
+  "text": {
+    "color": "#FFFFFF",
+    "strokePercent": 2,
+    "strokeColor": "rgba(0,0,0,0.30)",
+    "shadow": {
+      "angle": 270,
+      "offset": 10,
+      "blur": 20,
+      "color": "rgba(0,0,0,0.5)"
+    }
+  },
+  "styles": {
+    "small": {
+      "rect": [
+        63.126,
+        753.138,
+        1692.806,
+        290.233
+      ],
+      "regularFont": "NeuzeitGro-Reg",
+      "boldFont": "NeuzeitGro-Bol",
+      "size": 54,
+      "tracking": 2.0,
+      "lineHeight": 0.9,
+      "align": "left",
+      "valign": "bottom",
+      "maxLines": 4
+    },
+    "big": {
+      "rect": [
+        62.986,
+        953.637,
+        1692.806,
+        97.496
+      ],
+      "regularFont": "NeuzeitGro-Bol",
+      "boldFont": "NeuzeitGro-Bol",
+      "size": 75,
+      "tracking": 0,
+      "lineHeight": 1.0,
+      "align": "left",
+      "valign": "bottom",
+      "maxLines": 1
+    }
+  }
+}

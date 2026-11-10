@@ -41,6 +41,8 @@ echo "==> lt-render (native arch)"
 swiftc -O -swift-version 5 -target "$(uname -m)-apple-macos$MIN_OS" -module-name lt_render \
   "${CORE[@]}" "$APP_DIR"/Sources/lt-render/*.swift -o "$OUT/lt-render"
 rm -rf "$OUT/Themes" && cp -R "$APP_DIR/Themes" "$OUT/Themes"
+rm -rf "$OUT/NotesThemes" && cp -R "$APP_DIR/../notes-themes" "$OUT/NotesThemes"
+rm -rf "$OUT/Web" && cp -R "$APP_DIR/Web" "$OUT/Web"
 swiftc -O -swift-version 5 -target "$(uname -m)-apple-macos$MIN_OS" -I "$OUT/syphon/include" -L "$OUT/syphon" -lSyphon \
   -framework Metal -framework IOSurface -framework OpenGL -framework CoreVideo -framework Cocoa \
   "$APP_DIR/Tools/syphon-grab.swift" -o "$OUT/syphon-grab"
@@ -51,8 +53,13 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 lipo -create "${bins[@]}" -output "$APP/Contents/MacOS/LifeCG"
 sed -e "s/__VERSION__/$VERSION/" -e "s/__BUILD__/$BUILD/" "$APP_DIR/Support/Info.plist" > "$APP/Contents/Info.plist"
 cp -R "$APP_DIR/Themes" "$APP/Contents/Resources/Themes"
+cp -R "$APP_DIR/../notes-themes" "$APP/Contents/Resources/NotesThemes"
+cp -R "$APP_DIR/Web" "$APP/Contents/Resources/Web"
 [ -f "$APP_DIR/Support/AppIcon.icns" ] && cp "$APP_DIR/Support/AppIcon.icns" "$APP/Contents/Resources/"
 printf 'APPL????' > "$APP/Contents/PkgInfo"
+
+# Files copied from network shares can carry Finder info / resource forks, which codesign rejects.
+find "$APP" -name "._*" -delete; /usr/bin/xattr -cr "$APP"
 
 echo "==> Sign ($SIGN_ID)"
 if [ "$SIGN_ID" = "-" ]; then

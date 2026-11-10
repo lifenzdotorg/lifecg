@@ -1,0 +1,29 @@
+{
+  "id": "west",
+  "name": "West",
+  "source": "West Themes 2025.protheme",
+  "canvas": [1920, 1080],
+  "layers": [
+    { "type": "rect", "rect": [0, 181.145, 1920, 290.233], "color": "#000000", "opacity": 0.497 }
+  ],
+  "text": {
+    "color": "#FFFFFF",
+    "strokePercent": 2,
+    "strokeColor": "rgba(0,0,0,0.30)",
+    "shadow": { "angle": 270, "offset": 10, "blur": 20, "color": "rgba(0,0,0,0.5)" }
+  },
+  "styles": {
+    "small": {
+      "rect": [87.272, 181.145, 1745.455, 290.233],
+      "regularFont": "NeuzeitGro-Reg", "boldFont": "NeuzeitGro-Bol",
+      "size": 54, "tracking": 2.0, "lineHeight": 0.9,
+      "align": "left", "valign": "middle", "maxLines": 4
+    },
+    "big": {
+      "rect": [113.597, 277.469, 1692.806, 97.496],
+      "regularFont": "NeuzeitGro-Bol", "boldFont": "NeuzeitGro-Bol",
+      "size": 75, "tracking": 0, "lineHeight": 1.0,
+      "align": "left", "valign": "middle", "maxLines": 1
+    }
+  }
+}

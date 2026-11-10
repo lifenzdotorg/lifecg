@@ -39,6 +39,16 @@ public final class GraphicAnimator {
     private var frameCount = 0
     private var stats = FrameStats()
 
+    // Speaker notes layer (owned by `queue`): the theme background fades with the notes as a whole,
+    // slide text cross-fades from one slide to the next.
+    private struct NotesText { let key: String; let texture: MTLTexture; var alpha: Double }
+    private var notesBG: MTLTexture?
+    private var notesBGKey: String?
+    private var notesBGAlpha = 0.0
+    private var notesOn = false
+    private var notesTexts: [NotesText] = []   // last = current target
+    private var notesTargetKey: String?
+
     public struct Config: Equatable {
         public var inTransition: Transition = .slideBoxFadeText
         public var outTransition: Transition = .slideBoxFadeText
@@ -46,6 +56,8 @@ public final class GraphicAnimator {
         public var outSpeedFactor: Double = 0.6
         public var frameRate: Double = 50
         public var offset: CGPoint = .zero
+        /// Speaker notes: dissolve time between slides and on/off (0 = cut).
+        public var notesFade: Double = 0.3
         public init() {}
     }
 
@@ -113,6 +125,52 @@ public final class GraphicAnimator {
         }
     }
 
+    /// Show a notes slide (`text` nil = take notes off). `bgKey` / `textKey` identify the images so
+    /// repeated calls with the same content do nothing. Images are full frame, premultiplied.
+    public func setNotes(background: CGImage?, bgKey: String, text: CGImage?, textKey: String?) {
+        queue.async {
+            if self.notesBGKey != bgKey {
+                self.notesBG = background.flatMap { self.compositor.makeTexture($0) }
+                self.notesBGKey = bgKey
+                self.dirty = true
+            }
+            guard textKey != self.notesTargetKey else { return }
+            self.notesTargetKey = textKey
+            if let text, let key = textKey {
+                if let i = self.notesTexts.firstIndex(where: { $0.key == key }) {
+                    let t = self.notesTexts.remove(at: i); self.notesTexts.append(t)
+                } else if let tex = self.compositor.makeTexture(text) {
+                    self.notesTexts.append(NotesText(key: key, texture: tex, alpha: 0))
+                }
+                self.notesOn = true
+            } else {
+                self.notesOn = false
+            }
+            self.dirty = true
+        }
+    }
+
+    /// Advance the notes fades by one frame; true while anything moves.
+    private func stepNotes(_ frame: Double) -> Bool {
+        let step = config.notesFade > 0 ? frame / config.notesFade : 1
+        var moving = false
+        let bgTarget = notesOn ? 1.0 : 0.0
+        if notesBGAlpha != bgTarget {
+            notesBGAlpha = bgTarget > notesBGAlpha ? min(bgTarget, notesBGAlpha + step) : max(bgTarget, notesBGAlpha - step)
+            moving = true
+        }
+        for i in notesTexts.indices {
+            let isTarget = notesOn && i == notesTexts.count - 1 && notesTexts[i].key == notesTargetKey
+            let target = isTarget ? 1.0 : 0.0
+            if notesTexts[i].alpha != target {
+                notesTexts[i].alpha = target > notesTexts[i].alpha ? min(1, notesTexts[i].alpha + step) : max(0, notesTexts[i].alpha - step)
+                moving = true
+            }
+        }
+        notesTexts.removeAll { $0.alpha <= 0 && $0.key != notesTargetKey }
+        return moving
+    }
+
     /// Rasterise a title's pieces with the current style and upload them.
     private func loadEntry(_ e: TitleEntry) -> MetalCompositor.LoadedTitle? {
         compositor.load(renderer.sprites(title: e.title, designation: e.designation))
@@ -146,6 +204,7 @@ public final class GraphicAnimator {
             }
             changed = true
         }
+        if stepNotes(frame) { changed = true }
         dirty = false
 
         guard let cb = compositor.queue.makeCommandBuffer() else { return }
@@ -155,6 +214,10 @@ public final class GraphicAnimator {
                                      transition: direction < 0 ? config.outTransition : config.inTransition)
             }
             compositor.encode(progress > 0 ? displayed : nil, plan: plan, offset: config.offset, into: cb)
+            var overlay: [(texture: MTLTexture, alpha: Double)] = []
+            if let bg = notesBG, notesBGAlpha > 0 { overlay.append((bg, notesBGAlpha)) }
+            overlay += notesTexts.map { ($0.texture, $0.alpha) }
+            compositor.encodeOverlay(overlay, into: cb)
         }
         onFrame?(compositor.output, cb)
         // Preview: ~10 fps while moving, and once when it settles.

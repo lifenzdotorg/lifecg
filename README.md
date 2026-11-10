@@ -51,6 +51,23 @@ from pixels). Switch themes in the app or from Companion (*Set Theme*). The chan
 
 **Font:** the design uses **Neuzeit Grotesk** (Bold for the name, Regular for the designation). It is a commercial font and is **not** in this repo. Install `NeuzeitGro-Bol` / `NeuzeitGro-Reg` on the CG Mac. Without it the app falls back to Avenir Next at the same size and shows the fallback in orange under *Settings*.
 
+## Speaker notes (branch `notes-platform`, prototype)
+
+Scripture / sermon-point lower thirds prepared by PAs in a web portal and run from an iPad on the church LAN.
+See [docs/notes-platform/PLAN.md](docs/notes-platform/PLAN.md) and the shared formats in
+[docs/notes-platform/FORMAT.md](docs/notes-platform/FORMAT.md).
+
+| Piece | Where |
+|---|---|
+| Portal (Cloudflare Worker + D1 + R2, Preact) | [`cloud/`](cloud) |
+| Notes themes (Central, West), built from the ProPresenter `.proTheme` files | [`notes-themes/`](notes-themes) |
+| Mac: notes renderer, cue-screen Syphon output `LifeCG Cue`, portal sync | `app/Sources/LifeCGCore/Notes*.swift`, `app/Sources/LifeCG/CueOutput.swift` |
+| Control GUI (PIN-protected, `http://<CG Mac>:9123/control`) | [`app/Web/control.html`](app/Web/control.html) |
+
+Companion: **Hide Title** also takes the current notes slide off; **Clear All** also blanks "Next" on the cue screen.
+Try it without the portal: `app/build/lt-render --notes central slides.json outdir --cue` renders stills;
+`NOTES_PIN=1234 NOTES_FILE=package.json app/build/lt-render --serve 9300` runs a headless server with the control GUI.
+
 ## Using it
 
 1. Run **LifeCG.app** on the CG Mac. It lives in the menu bar (closing the window keeps it running). Turn on *Settings → Launch at login*.

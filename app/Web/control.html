@@ -1,0 +1,439 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="LifeCG Notes">
+<title>LifeCG Notes</title>
+<style>
+:root {
+  --bg: #111316; --panel: #1b1e23; --panel2: #23272e; --line: #2f343c;
+  --text: #eef0f3; --muted: #9aa1ab; --faint: #6b727c;
+  --live: #ff453a; --next: #32d74b; --warn: #ffd60a; --accent: #0a84ff;
+  --radius: 14px;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; background: var(--bg); color: var(--text);
+  font: 16px/1.35 -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, Arial, sans-serif; }
+button, select { font: inherit; color: inherit; }
+button { cursor: pointer; border: 0; border-radius: 12px; background: var(--panel2); padding: 12px 16px; font-weight: 600;
+  touch-action: manipulation; user-select: none; -webkit-user-select: none; }
+button:active { filter: brightness(1.3); }
+button:disabled { opacity: .4; }
+select { background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; padding: 9px 10px; max-width: 100%; }
+.hidden { display: none !important; }
+
+/* Login */
+#login { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; }
+.pinbox { width: min(340px, 100%); text-align: center; }
+.pinbox h1 { font-size: 22px; margin: 0 0 4px; }
+.pinbox p { color: var(--muted); margin: 0 0 22px; }
+.dots { display: flex; gap: 14px; justify-content: center; margin-bottom: 22px; }
+.dots span { width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--muted); }
+.dots span.on { background: var(--text); border-color: var(--text); }
+.keys { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.keys button { font-size: 26px; padding: 18px 0; border-radius: 50px; font-weight: 500; }
+#pinerr { color: var(--live); min-height: 22px; margin-top: 14px; }
+#lifeSignIn { margin: 0 0 26px; padding: 0 0 22px; border-bottom: 1px solid var(--line); }
+#lifeSignIn button { width: 100%; background: var(--accent); padding: 15px; font-size: 17px; }
+#lifeSignIn label { display: flex; gap: 8px; align-items: center; justify-content: center; margin-top: 12px; color: var(--muted); font-size: 15px; }
+#lifeSignIn input { width: 20px; height: 20px; }
+.who { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; white-space: nowrap; }
+.who button { padding: 6px 10px; font-size: 13px; }
+
+/* App */
+header { position: sticky; top: 0; z-index: 5; background: rgba(17,19,22,.94); backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--line); padding: max(10px, env(safe-area-inset-top)) 16px 10px; }
+.bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.bar .grow { flex: 1 1 260px; min-width: 0; }
+.bar select { width: 100%; }
+.status { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 13px; white-space: nowrap; }
+.status i { width: 9px; height: 9px; border-radius: 50%; background: var(--faint); display: inline-block; }
+.status.ok i { background: var(--next); }
+.status.bad i { background: var(--live); }
+.seg { display: inline-flex; background: var(--panel2); border-radius: 10px; padding: 3px; }
+.seg button { padding: 7px 12px; border-radius: 8px; background: transparent; font-weight: 600; font-size: 14px; color: var(--muted); }
+.seg button.on { background: #3a3f48; color: var(--text); }
+
+#banner { margin-top: 10px; background: #3a3000; border: 1px solid #6b5900; color: #ffe580; border-radius: 12px;
+  padding: 10px 12px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+#banner b { flex: 1 1 200px; }
+#banner button { background: var(--warn); color: #000; padding: 9px 14px; }
+#banner button.ghost { background: transparent; color: #ffe580; }
+.note { margin-top: 8px; color: var(--muted); font-size: 13px; }
+
+.layout { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 16px; padding: 16px; align-items: start; }
+@media (max-width: 900px) { .layout { grid-template-columns: 1fr; } aside { order: -1; } }
+
+aside { position: sticky; top: 92px; display: flex; flex-direction: column; gap: 12px; }
+@media (max-width: 900px) {
+  aside { position: static; }
+  .layout .controls { position: fixed; left: 0; right: 0; bottom: 0; z-index: 6; grid-template-columns: repeat(4, 1fr);
+    background: rgba(17,19,22,.96); backdrop-filter: blur(10px); border-top: 1px solid var(--line);
+    padding: 10px 12px calc(10px + env(safe-area-inset-bottom)); }
+  .controls button { padding: 14px 4px; font-size: 15px; }
+  main { padding-bottom: 96px; }
+}
+@media (max-width: 520px) {
+  .slide { grid-template-columns: 46px minmax(0, 1fr); }
+  .slide .side { grid-column: 2; flex-direction: row; justify-content: flex-end; }
+  .slide .kind { display: none; }
+}
+.cue { background: #000; border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; }
+.cue h3 { margin: 0 0 4px; font-size: 12px; letter-spacing: .12em; }
+.cue .now h3 { color: var(--live); } .cue .nx h3 { color: var(--next); }
+.cue .txt { white-space: pre-wrap; font-size: 15px; min-height: 2.6em; color: #fff; }
+.cue .nx { border-top: 1px solid var(--line); margin-top: 10px; padding-top: 10px; }
+.cue .nx .txt { color: #c8c8c8; }
+.cue .empty { color: var(--faint); font-style: italic; }
+.controls { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.controls button { padding: 16px 10px; font-size: 17px; }
+#bClear { background: #4a1d1b; color: #ffb3ad; }
+#bClearAll { background: var(--live); color: #fff; }
+#bNext { background: var(--accent); }
+.mode { display: flex; justify-content: space-between; align-items: center; gap: 8px; color: var(--muted); font-size: 14px; }
+
+/* Slides */
+#slides { display: flex; flex-direction: column; gap: 10px; }
+.slide { position: relative; display: grid; grid-template-columns: 74px minmax(0, 1fr) auto; gap: 12px; align-items: stretch;
+  background: var(--panel); border: 2px solid transparent; border-radius: var(--radius); padding: 12px; cursor: pointer;
+  user-select: none; -webkit-user-select: none; touch-action: manipulation; }
+.slide:active { background: var(--panel2); }
+.slide .num { font-weight: 700; color: var(--muted); font-size: 18px; text-align: center; padding-top: 2px; }
+.slide .kind { font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: var(--faint); display: block; margin-top: 4px; }
+.slide .body { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 16px; }
+.slide .body b { font-weight: 700; }
+.slide.point .body { font-weight: 700; }
+.slide .thumb { display: block; width: 100%; border-radius: 8px; background: #2a2c30; aspect-ratio: 1920 / 420; object-fit: cover; }
+.slide .side { display: flex; flex-direction: column; gap: 8px; justify-content: center; }
+.slide .side button { padding: 10px 12px; font-size: 14px; background: #2b3a2e; color: #a6f0b3; }
+.slide.live { border-color: var(--live); background: #2a1716; }
+.slide.next { border-color: var(--next); }
+.slide .tag { position: absolute; top: -9px; left: 12px; font-size: 11px; font-weight: 800; letter-spacing: .1em;
+  padding: 2px 8px; border-radius: 6px; }
+.slide.live .tag.l { background: var(--live); color: #fff; }
+.slide.next .tag.n { background: var(--next); color: #000; }
+.slide.live.next .tag.n { left: 70px; }
+.warn { color: var(--warn); font-size: 12px; margin-top: 6px; }
+.emptystate { color: var(--muted); padding: 40px 10px; text-align: center; }
+.small { font-size: 13px; color: var(--muted); }
+#toast { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom)); transform: translateX(-50%);
+  background: #3a3f48; padding: 10px 16px; border-radius: 12px; z-index: 20; opacity: 0; transition: opacity .2s; pointer-events: none; }
+#toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<section id="login" class="hidden">
+  <div class="pinbox">
+    <h1>LifeCG Notes</h1>
+    <div id="lifeSignIn" class="hidden">
+      <p>Operators: sign in with your LIFE login.</p>
+      <button id="bLife">Sign in with LIFE account</button>
+      <label><input type="checkbox" id="remember"> Remember me on this device</label>
+    </div>
+    <p id="pinPrompt">Enter the 4-digit PIN shown in LifeCG's Settings on the CG Mac.</p>
+    <div class="dots"><span></span><span></span><span></span><span></span></div>
+    <div class="keys" id="keys"></div>
+    <div id="pinerr"></div>
+  </div>
+</section>
+
+<section id="app" class="hidden">
+  <header>
+    <div class="bar">
+      <div class="grow"><select id="service" aria-label="Service"></select></div>
+      <select id="theme" aria-label="Theme"></select>
+      <div class="seg" role="group" aria-label="View">
+        <button id="vText" class="on">Text</button><button id="vRendered">Rendered</button>
+      </div>
+      <span class="status" id="status"><i></i><span>Connecting…</span></span>
+      <span class="who"><span id="whoName"></span><button id="bSignOut">Sign out</button></span>
+    </div>
+    <div id="banner" class="hidden">
+      <b id="bannerText">Updated notes available.</b>
+      <button id="bLoadUpdate">Load now</button>
+      <button id="bLater" class="ghost">Later</button>
+    </div>
+    <div id="titleNote" class="note hidden">A speaker title is on air. Taking a slide live replaces it.</div>
+  </header>
+
+  <div class="layout">
+    <main>
+      <div id="slides"></div>
+    </main>
+    <aside>
+      <div class="cue" aria-label="Cue screen">
+        <div class="now"><h3>NOW ON SCREEN</h3><div class="txt" id="cueNow"></div></div>
+        <div class="nx"><h3>NEXT ON CUE SCREEN</h3><div class="txt" id="cueNext"></div></div>
+      </div>
+      <div class="controls">
+        <button id="bPrev">◀ Previous</button>
+        <button id="bNext">Next ▶</button>
+        <button id="bClear">Clear</button>
+        <button id="bClearAll">Clear All</button>
+      </div>
+      <div class="mode">
+        <span>Tap a slide to</span>
+        <div class="seg" role="group" aria-label="Tap action">
+          <button id="mLive" class="on">Go live</button><button id="mPreview">Preview</button>
+        </div>
+      </div>
+      <div class="small">Preview puts a slide in “Next” on the cue screen without showing it to the audience.
+        Clear takes the slide off; Clear All also blanks “Next”.</div>
+      <div class="small" id="syncInfo"></div>
+    </aside>
+  </div>
+</section>
+<div id="toast"></div>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const store = {
+    get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+    set(k, v) { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch {} },
+  };
+  // PIN and not-remembered sign-ins live only as long as this tab (sessionStorage);
+  // "Remember me" keeps a LIFE sign-in in localStorage (and on the Mac) for 30 days.
+  const tab = {
+    get(k) { try { return sessionStorage.getItem(k); } catch { return null; } },
+    set(k, v) { try { v == null ? sessionStorage.removeItem(k) : sessionStorage.setItem(k, v); } catch {} },
+  };
+  let session = tab.get("lifecg.session") || store.get("lifecg.session");
+  function saveSession(t, remember) {
+    session = t;
+    store.set("lifecg.session", remember ? t : null);
+    tab.set("lifecg.session", remember ? null : t);
+  }
+  let view = store.get("lifecg.view") || "text";
+  let tapMode = "live";
+  let state = null, ws = null, retry = 0, dismissedVersion = null;
+
+  // ---------- PIN ----------
+  let pin = "";
+  const keys = ["1","2","3","4","5","6","7","8","9","","0","⌫"];
+  keys.forEach(k => {
+    const b = document.createElement("button");
+    b.textContent = k; if (!k) b.style.visibility = "hidden";
+    b.onclick = () => press(k);
+    $("keys").appendChild(b);
+  });
+  function drawDots() { [...document.querySelectorAll(".dots span")].forEach((d, i) => d.classList.toggle("on", i < pin.length)); }
+  function press(k) {
+    if (k === "⌫") pin = pin.slice(0, -1);
+    else if (/\d/.test(k) && pin.length < 4) pin += k;
+    $("pinerr").textContent = ""; drawDots();
+    if (pin.length === 4) login();
+  }
+  document.addEventListener("keydown", e => {
+    if (!$("login").classList.contains("hidden")) {
+      if (/^\d$/.test(e.key)) press(e.key); else if (e.key === "Backspace") press("⌫");
+      return;
+    }
+    if (e.target.tagName === "SELECT") return;
+    if (e.key === "ArrowRight" || e.key === " " || e.key === "PageDown") { e.preventDefault(); act("next"); }
+    else if (e.key === "ArrowLeft" || e.key === "PageUp") { e.preventDefault(); act("previous"); }
+    else if (e.key === "Escape") act(e.shiftKey ? "clearAll" : "clear");
+  });
+  async function login() {
+    try {
+      const r = await fetch("/api/notes/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pin }) });
+      const j = await r.json();
+      if (!r.ok) { $("pinerr").textContent = j.message || "Wrong PIN"; pin = ""; drawDots(); return; }
+      saveSession(j.session, false); pin = ""; drawDots();
+      showApp();
+    } catch { $("pinerr").textContent = "Can't reach LifeCG. Are you on the church network?"; pin = ""; drawDots(); }
+  }
+
+  // ---------- LIFE sign-in (operators) ----------
+  // The portal signs the person in and sends them back to /control#code=…; LifeCG redeems the code with the portal.
+  let signInURL = null;
+  $("remember").checked = store.get("lifecg.remember") === "1";
+  $("bLife").onclick = () => {
+    if (!signInURL) return;
+    store.set("lifecg.remember", $("remember").checked ? "1" : "0");
+    location.href = signInURL + "?return=" + encodeURIComponent(location.origin + "/control");
+  };
+  async function loadLoginOptions() {
+    try {
+      const j = await (await fetch("/api/notes/loginOptions")).json();
+      signInURL = j.signInURL || null;
+    } catch { signInURL = null; }
+    $("lifeSignIn").classList.toggle("hidden", !signInURL);
+    $("pinPrompt").textContent = signInURL ? "Or enter the 4-digit PIN shown on the CG Mac." : "Enter the 4-digit PIN shown in LifeCG's Settings on the CG Mac.";
+  }
+  async function redeem(code) {
+    const remember = store.get("lifecg.remember") === "1";
+    $("pinerr").textContent = "Signing you in…";
+    try {
+      const r = await fetch("/api/notes/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code, remember }) });
+      const j = await r.json();
+      if (!r.ok) { $("pinerr").textContent = j.message || "Sign-in failed"; return; }
+      $("pinerr").textContent = "";
+      saveSession(j.session, remember);
+      showApp();
+    } catch { $("pinerr").textContent = "Can't reach LifeCG. Are you on the church network?"; }
+  }
+
+  function showLogin() { saveSession(null, false); if (ws) { ws.onclose = null; ws.close(); ws = null; }
+    $("app").classList.add("hidden"); $("login").classList.remove("hidden"); loadLoginOptions(); }
+  $("bSignOut").onclick = async () => {
+    try { await fetch("/api/notes/logout", { method: "POST", headers: { "X-LifeCG-Session": session } }); } catch {}
+    showLogin();
+  };
+  function showApp() { $("login").classList.add("hidden"); $("app").classList.remove("hidden"); connect(); }
+
+  // ---------- Connection ----------
+  function setStatus(kind, text) { const s = $("status"); s.className = "status " + kind; s.lastElementChild.textContent = text; }
+  async function connect() {
+    // Check the session first: a WebSocket can't report a 401.
+    try {
+      const me = await fetch("/api/notes/me", { headers: { "X-LifeCG-Session": session } });
+      if (me.status === 401) { showLogin(); return; }
+      if (me.ok) { const u = await me.json(); $("whoName").textContent = u.kind === "operator" ? (u.name || u.email) : "PIN"; }
+      const r = await fetch("/api/notes/state", { headers: { "X-LifeCG-Session": session } });
+      if (r.status === 401) { showLogin(); return; }
+      if (r.ok) render(await r.json());
+    } catch { setStatus("bad", "Offline"); scheduleReconnect(); return; }
+    const proto = location.protocol === "https:" ? "wss" : "ws";
+    ws = new WebSocket(`${proto}://${location.host}/notes/ws?s=${encodeURIComponent(session)}`);
+    ws.onopen = () => { retry = 0; setStatus("ok", "Connected"); };
+    ws.onmessage = (e) => {
+      const m = JSON.parse(e.data);
+      if (m.type === "notes") render(m);
+      else if (m.type === "error") toast(m.message);
+    };
+    ws.onclose = () => { ws = null; setStatus("bad", "Reconnecting…"); scheduleReconnect(); };
+  }
+  function scheduleReconnect() { const d = Math.min(5000, 500 * 2 ** retry++); setTimeout(() => session && connect(), d); }
+  setInterval(() => { if (ws && ws.readyState === 1) ws.send('{"type":"ping"}'); }, 20000);
+
+  function act(type, extra = {}) {
+    if (ws && ws.readyState === 1) { ws.send(JSON.stringify({ type, ...extra })); return; }
+    fetch("/api/notes/" + type, { method: "POST", headers: { "Content-Type": "application/json", "X-LifeCG-Session": session },
+      body: JSON.stringify(extra) }).then(r => r.status === 401 ? showLogin() : r.json()).then(j => j && j.type === "notes" && render(j))
+      .catch(() => toast("Not connected"));
+  }
+
+  // ---------- Render ----------
+  const esc = (s) => s.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const runsHTML = (runs) => runs.map(r => r.b ? `<b>${esc(r.t)}</b>` : esc(r.t)).join("");
+  const plain = (runs) => runs.map(r => r.t).join("");
+  function fmtDate(s) {
+    if (!s) return "";
+    const d = new Date(s); if (isNaN(d)) return s;
+    return d.toLocaleString(undefined, { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
+  }
+
+  let renderedKey = "";
+  function render(s) {
+    state = s;
+    // Services
+    const sel = $("service"), cur = s.service && s.service.id;
+    const opts = (s.services || []).map(v =>
+      `<option value="${esc(v.id)}" ${v.id === cur ? "selected" : ""}>${esc([v.label || v.campusName || v.campusId, fmtDate(v.startsAt), v.title].filter(Boolean).join(" · "))} (v${v.version})</option>`);
+    if (!cur) opts.unshift(`<option value="" selected>— Choose a service —</option>`);
+    opts.push(`<option value="__all">Show other campuses…</option>`);
+    const html = opts.join("");
+    if (sel.dataset.html !== html) { sel.innerHTML = html; sel.dataset.html = html; }
+    // Themes
+    const th = $("theme"), thHTML = (s.themes || []).map(t => `<option value="${esc(t.id)}" ${t.id === s.themeId ? "selected" : ""}>${esc(t.name)}</option>`).join("");
+    if (th.dataset.html !== thHTML) { th.innerHTML = thHTML; th.dataset.html = thHTML; }
+    th.value = s.themeId;
+    // Banner
+    const pu = s.pendingUpdate;
+    $("banner").classList.toggle("hidden", !pu || dismissedVersion === pu.version);
+    if (pu) $("bannerText").textContent = `Updated notes available (version ${pu.version}). Load now?`;
+    $("titleNote").classList.toggle("hidden", !s.titleOnAir);
+    // Cue mirror
+    const slides = s.slides || [];
+    const cueTxt = (i) => i == null || !slides[i] ? `<span class="empty">(blank)</span>` : runsHTML(slides[i].runs);
+    $("cueNow").innerHTML = cueTxt(s.live);
+    $("cueNext").innerHTML = cueTxt(s.next);
+    // Sync info
+    const sy = s.sync || {};
+    $("syncInfo").textContent = !sy.configured ? "Portal sync is not set up on this Mac (notes from files only)."
+      : sy.error ? `Portal: ${sy.error} (using saved notes)` : sy.lastSuccess ? `Portal synced ${new Date(sy.lastSuccess).toLocaleTimeString()}` : "Portal: connecting…";
+    // Slides (rebuild only when content changes; otherwise just update classes)
+    const key = JSON.stringify([cur, s.service && s.service.version, s.themeId, view, slides.length, slides.map(x => x.id)]);
+    const list = $("slides");
+    if (key !== renderedKey) {
+      renderedKey = key;
+      if (!slides.length) {
+        list.innerHTML = `<div class="emptystate">${cur ? "This service has no slides." : "No notes loaded. Choose a service above."}</div>`;
+      } else {
+        const v = encodeURIComponent(`${cur}|${s.service.version}|${s.themeId}`);
+        list.innerHTML = slides.map((x, i) => {
+          const max = (s.maxLines || {})[x.style] || 4;
+          const warn = x.lines > max ? `<div class="warn">⚠ ${x.lines} lines (max ${max})</div>` : "";
+          const body = view === "rendered"
+            ? `<img class="thumb" loading="lazy" alt="${esc(plain(x.runs))}" src="/api/notes/thumb/${i}.png?s=${encodeURIComponent(session)}&v=${v}">`
+            : `<div class="body">${runsHTML(x.runs)}</div>`;
+          return `<div class="slide ${esc(x.kind)}" data-i="${i}">
+            <span class="tag l">LIVE</span><span class="tag n">NEXT</span>
+            <div class="num">${i + 1}<span class="kind">${esc(x.kind)}</span></div>
+            <div>${body}${warn}</div>
+            <div class="side"><button data-preview="${i}" title="Show as Next on the cue screen">Preview</button></div>
+          </div>`;
+        }).join("");
+      }
+    }
+    list.querySelectorAll(".slide").forEach(el => {
+      const i = +el.dataset.i;
+      el.classList.toggle("live", i === s.live);
+      el.classList.toggle("next", i === s.next);
+      el.querySelector(".tag.l").classList.toggle("hidden", i !== s.live);
+      el.querySelector(".tag.n").classList.toggle("hidden", i !== s.next);
+    });
+    $("bClear").disabled = s.live == null;
+  }
+
+  // ---------- Events ----------
+  $("slides").addEventListener("click", e => {
+    const pv = e.target.closest("[data-preview]");
+    if (pv) { e.stopPropagation(); act("preview", { index: +pv.dataset.preview }); return; }
+    const el = e.target.closest(".slide"); if (!el) return;
+    act(tapMode === "live" ? "live" : "preview", { index: +el.dataset.i });
+  });
+  $("bPrev").onclick = () => act("previous");
+  $("bNext").onclick = () => act("next");
+  $("bClear").onclick = () => act("clear");
+  $("bClearAll").onclick = () => act("clearAll");
+  $("bLoadUpdate").onclick = () => act("applyUpdate");
+  $("bLater").onclick = () => { dismissedVersion = state && state.pendingUpdate && state.pendingUpdate.version; $("banner").classList.add("hidden"); };
+  $("service").onchange = (e) => {
+    const v = e.target.value;
+    if (v === "__all") { act("refresh", { all: true }); toast("Looking up other campuses…"); e.target.value = state.service ? state.service.id : ""; return; }
+    if (!v) return;
+    if (state && state.live != null && !confirm("A slide is live. Load a different service? The output will be cleared.")) {
+      e.target.value = state.service ? state.service.id : ""; return;
+    }
+    act("load", { serviceId: v });
+  };
+  $("theme").onchange = (e) => act("theme", { id: e.target.value });
+  function setView(v) { view = v; store.set("lifecg.view", v); $("vText").classList.toggle("on", v === "text");
+    $("vRendered").classList.toggle("on", v === "rendered"); if (state) { renderedKey = ""; render(state); } }
+  $("vText").onclick = () => setView("text");
+  $("vRendered").onclick = () => setView("rendered");
+  function setMode(m) { tapMode = m; $("mLive").classList.toggle("on", m === "live"); $("mPreview").classList.toggle("on", m === "preview"); }
+  $("mLive").onclick = () => setMode("live");
+  $("mPreview").onclick = () => setMode("preview");
+
+  let toastTimer;
+  function toast(t) { const el = $("toast"); el.textContent = t; el.classList.add("show"); clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.classList.remove("show"), 2500); }
+
+  setView(view);
+  const m = /^#code=([A-Za-z0-9_-]+)$/.exec(location.hash);
+  if (m) {
+    history.replaceState(null, "", location.pathname);   // don't leave the code in the address bar or history
+    showLogin(); redeem(m[1]);
+  } else if (session) showApp(); else showLogin();
+})();
+</script>
+</body>
+</html>

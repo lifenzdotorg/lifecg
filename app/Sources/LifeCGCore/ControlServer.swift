@@ -18,10 +18,24 @@ public final class ControlServer {
     public var onLog: ((String) -> Void)?
     /// A client asked to switch theme; return false if the id is unknown.
     public var onSetTheme: ((String) -> Bool)?
+    /// Companion "Hide": also takes the current notes slide off.
+    public var onHide: (() -> Void)?
+    /// Companion "Clear All": title off, notes slide off, cue screen "next" blanked.
+    public var onClearAll: (() -> Void)?
+
+    // Speaker notes control GUI (see NotesServer.swift)
+    public var notesHub: NotesHub?
+    /// The 4-digit PIN for the control GUI.
+    public var notesPIN: () -> String = { "" }
+    /// Control GUI sign-ins, keyed by SHA-256 of the session token (see NotesServer.swift).
+    var notesSessions: [String: NotesSession] = [:]
+    /// Where remembered LIFE sign-ins are kept so they survive a restart (nil = memory only).
+    public var notesSessionFile: URL? { didSet { loadNotesSessions() } }
+    var notesFailures: [String: (count: Int, until: Date)] = [:]
 
     private let store: TitleStore
     private var listener: NWListener?
-    private var connections: [Int: Connection] = [:]
+    var connections: [Int: Connection] = [:]
     private var nextID = 1
     public private(set) var port: UInt16 = 0
 
@@ -58,7 +72,7 @@ public final class ControlServer {
     /// Push the current state to every WebSocket client.
     public func broadcast(_ state: TitleState) {
         let text = Self.json(state.jsonObject())
-        for c in connections.values where c.isWebSocket { c.sendText(text) }
+        for c in connections.values where c.isWebSocket && !c.isNotesClient { c.sendText(text) }
     }
 
     // MARK: - Connections
@@ -85,7 +99,7 @@ public final class ControlServer {
         c.start()
     }
 
-    private func updateClients() {
+    func updateClients() {
         clients = connections.values.filter(\.isWebSocket).compactMap(\.info).sorted { $0.id < $1.id }
         onClientsChanged?(clients)
     }
@@ -94,6 +108,7 @@ public final class ControlServer {
 
     private func handleHTTP(_ req: HTTPRequest, on c: Connection) {
         let path = req.path.split(separator: "?").first.map(String.init) ?? req.path
+        if handleNotesHTTP(req, path: path, on: c) { return }
         if path == "/ws", req.headers["upgrade"]?.lowercased() == "websocket", let key = req.headers["sec-websocket-key"] {
             let accept = Data(Insecure.SHA1.hash(data: Data((key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11").utf8))).base64EncodedString()
             c.sendRaw("HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: \(accept)\r\n\r\n")
@@ -118,7 +133,8 @@ public final class ControlServer {
         case ("POST", "/api/show"):
             do { try store.show(title: body["title"] as? String ?? "", designation: body["designation"] as? String ?? "", autoClearAfter: autoClear); ok() }
             catch { bad(error.localizedDescription) }
-        case ("POST", "/api/hide"): store.hide(); ok()
+        case ("POST", "/api/hide"): store.hide(); onHide?(); ok()
+        case ("POST", "/api/clearAll"): store.hide(); onClearAll?(); ok()
         case ("POST", "/api/toggle"): store.toggle(); ok()
         case ("POST", "/api/recent/clear"): store.clearRecent(); ok()
         case ("POST", "/api/theme"):
@@ -128,7 +144,7 @@ public final class ControlServer {
             if (body["action"] as? String) == "go" {
                 do { try store.show(title: body["name"] as? String ?? "", designation: body["designation"] as? String ?? ""); ok() }
                 catch { bad(error.localizedDescription) }
-            } else { store.hide(); ok() }
+            } else { store.hide(); onHide?(); ok() }
         default: bad("Not found", 404)
         }
     }
@@ -155,7 +171,8 @@ public final class ControlServer {
             case "showRecent":
                 try store.showRecent(id: obj["id"] as? String, index: (obj["index"] as? NSNumber)?.intValue,
                                      autoClearAfter: autoClearSeconds(obj))
-            case "hide": store.hide()
+            case "hide": store.hide(); onHide?()
+            case "clearAll": store.hide(); onClearAll?()
             case "toggle": store.toggle()
             case "removeRecent": store.removeRecent(id: obj["id"] as? String ?? "")
             case "clearRecent": store.clearRecent()
@@ -177,7 +194,7 @@ public final class ControlServer {
         return nil
     }
 
-    static func json(_ obj: Any) -> String {
+    public static func json(_ obj: Any) -> String {
         guard let d = try? JSONSerialization.data(withJSONObject: obj, options: [.sortedKeys]) else { return "{}" }
         return String(decoding: d, as: UTF8.self)
     }
@@ -192,10 +209,12 @@ struct HTTPRequest {
     var body: Data
 }
 
-private final class Connection {
+final class Connection {
     let id: Int
     let nw: NWConnection
     var isWebSocket = false
+    var isNotesClient = false
+    var notesSessionKey: String?
     var info: ControlServer.ClientInfo?
     var onRequest: ((HTTPRequest) -> Void)?
     var onText: ((String) -> Void)?
@@ -337,10 +356,15 @@ private final class Connection {
     }
 
     func respond(_ code: Int, _ body: String, contentType: String = "application/json") {
-        let reason = [200: "OK", 204: "No Content", 400: "Bad Request", 404: "Not Found"][code] ?? "OK"
-        let data = Data(body.utf8)
-        let head = "HTTP/1.1 \(code) \(reason)\r\nContent-Type: \(contentType); charset=utf-8\r\nContent-Length: \(data.count)\r\n"
-            + "Access-Control-Allow-Origin: *\r\nAccess-Control-Allow-Headers: Content-Type\r\nAccess-Control-Allow-Methods: GET, POST, OPTIONS\r\nConnection: close\r\n\r\n"
+        respondData(code, Data(body.utf8), contentType: contentType + "; charset=utf-8")
+    }
+
+    func respondData(_ code: Int, _ data: Data, contentType: String, extraHeaders: String = "") {
+        let reason = [200: "OK", 204: "No Content", 400: "Bad Request", 401: "Unauthorized", 404: "Not Found",
+                      429: "Too Many Requests", 503: "Service Unavailable"][code] ?? "OK"
+        let head = "HTTP/1.1 \(code) \(reason)\r\nContent-Type: \(contentType)\r\nContent-Length: \(data.count)\r\n"
+            + "Access-Control-Allow-Origin: *\r\nAccess-Control-Allow-Headers: Content-Type, X-LifeCG-Session\r\nAccess-Control-Allow-Methods: GET, POST, OPTIONS\r\n"
+            + extraHeaders + "Connection: close\r\n\r\n"
         nw.send(content: Data(head.utf8) + data, completion: .contentProcessed { [weak self] _ in self?.close() })
     }
 }

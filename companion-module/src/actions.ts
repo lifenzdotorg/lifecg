@@ -15,6 +15,7 @@ export type ActionsSchema = {
 	show_title: { options: { recent: string; title: string; designation: string; autoClear: boolean } }
 	show_recent_position: { options: { position: number; autoClear: boolean } }
 	hide_title: { options: Record<string, never> }
+	clear_all: { options: Record<string, never> }
 	toggle_title: { options: Record<string, never> }
 	clear_recent: { options: Record<string, never> }
 	remove_recent: { options: { id: string } }
@@ -150,9 +151,20 @@ export function buildActionDefinitions(ctx: ActionContext): CompanionActionDefin
 
 		hide_title: {
 			name: 'Hide Title',
+			description: 'Takes the speaker title off. Also takes the current speaker-notes slide off.',
 			options: [],
 			callback: () => {
 				ctx.send({ type: 'hide' })
+			},
+		},
+
+		clear_all: {
+			name: 'Clear All (title, notes and cue screen)',
+			description:
+				'Takes the title and the current speaker-notes slide off, and blanks "Next" on the speaker cue screen.',
+			options: [],
+			callback: () => {
+				ctx.send({ type: 'clearAll' })
 			},
 		},
 

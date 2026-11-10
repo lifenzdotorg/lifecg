@@ -1,0 +1,31 @@
+{
+  "name": "lifecg-notes-cloud",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build-portal.mjs",
+    "dev": "node scripts/build-portal.mjs && wrangler dev --port 8788",
+    "watch": "node scripts/build-portal.mjs --watch",
+    "db:local": "wrangler d1 migrations apply notes --local",
+    "fonts:local": "for f in NeuzeitGro-Reg NeuzeitGro-Bol; do wrangler r2 object put notes-private/fonts/$f.ttf --file .fonts/$f.ttf --content-type font/ttf --local; done",
+    "typecheck": "wrangler types && tsc --noEmit -p tsconfig.json && tsc --noEmit -p src/worker/tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "fflate": "0.8.2",
+    "hono": "4.13.17",
+    "pdf-lib": "1.17.1",
+    "pdfjs-dist": "4.10.38",
+    "preact": "10.29.8",
+    "protobufjs": "7.4.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.43",
+    "@types/opentype.js": "^1.3.10",
+    "esbuild": "0.25.12",
+    "opentype.js": "1.3.5",
+    "typescript": "5.9.3",
+    "vitest": "3.2.7",
+    "wrangler": "^4.159.0"
+  }
+}

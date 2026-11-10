@@ -114,6 +114,7 @@ if args.count >= 2, args[1] == "--selftest" {
         check(false, "Metal compositor available")
     }
     extractorSelfTests(check)
+    notesSelfTests(check)
     print("fonts:", r.resolvedFontNames())
     print(failures == 0 ? "ALL PASS" : "\(failures) FAILED")
     exit(failures == 0 ? 0 : 1)
@@ -122,6 +123,9 @@ if args.count >= 2, args[1] == "--selftest" {
 // Theme from a sample PNG: lt-render --extract <sample.png> <outdir> [title] [designation]
 if args.count >= 2, args[1] == "--extract" { runExtractCommand(args) }
 
+// Speaker notes stills: lt-render --notes <themeId> <slides.json> <outdir> [--text-only] [--cue]
+if args.count >= 2, args[1] == "--notes" { runNotesCommand(args) }
+
 // Headless server (no Syphon): lt-render --serve <port> [store.json]
 // Used to integration-test the Companion module and for debugging.
 if args.count >= 3, args[1] == "--serve" {
@@ -129,11 +133,39 @@ if args.count >= 3, args[1] == "--serve" {
     let server = ControlServer(store: store)
     guard let animator = GraphicAnimator(renderer: GraphicRenderer()) else { fail("Metal unavailable") }
     server.onLog = { print($0) }
+    // Speaker notes (env: NOTES_PIN, NOTES_PORTAL + NOTES_TOKEN, NOTES_FILE, NOTES_CACHE)
+    let env = ProcessInfo.processInfo.environment
+    var ns = NotesController.Settings()
+    ns.portalURL = env["NOTES_PORTAL"] ?? ""
+    ns.deviceToken = env["NOTES_TOKEN"] ?? ""
+    ns.accessClientID = env["CF_ACCESS_CLIENT_ID"] ?? ""
+    ns.accessClientSecret = env["CF_ACCESS_CLIENT_SECRET"] ?? ""
+    let notes = NotesController(cacheDir: env["NOTES_CACHE"].map { URL(fileURLWithPath: $0) }, settings: ns)
+    notes.onLog = { print($0) }
+    let hub = NotesHub(controller: notes, animator: animator)
+    server.notesHub = hub
+    server.notesPIN = { env["NOTES_PIN"] ?? "1234" }
+    if let f = env["NOTES_SESSIONS"] { server.notesSessionFile = URL(fileURLWithPath: f) }
+    hub.titleOnAir = { store.state.onAir }
+    hub.onStateChange = { server.broadcastNotes() }
+    hub.onNotesWentLive = { if store.state.onAir { store.hide() } }
+    hub.onCue = { c in print("cue: now=\(c.current?.plainText.prefix(40) ?? "-") | next=\(c.next?.plainText.prefix(40) ?? "-")") }
+    server.onHide = { notes.clear() }
+    server.onClearAll = { notes.clearAll() }
+    if let f = env["NOTES_FILE"], let d = try? Data(contentsOf: URL(fileURLWithPath: f)) {
+        do { try notes.importPackage(d) } catch { print("NOTES_FILE: \(error)") }
+    }
+    notes.startSync()
+    var wasOnAir = store.state.onAir
     store.onChange = { st in
         server.broadcast(st)
         animator.apply(st)
+        if st.onAir && !wasOnAir { notes.clear() }
+        wasOnAir = st.onAir
+        server.broadcastNotes()
         print("state: onAir=\(st.onAir) current=\(st.current?.title ?? "-") recent=\(st.recent.count)")
     }
+    hub.apply()
     try server.start(port: UInt16(args[2]) ?? 9123)
     animator.start()
     signal(SIGINT) { _ in exit(0) }

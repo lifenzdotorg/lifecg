@@ -21,6 +21,7 @@ struct MainView: View {
                 manualEntry
                 Picker("", selection: $tab) {
                     Text("Connections").tag(0)
+                    Text("Notes").tag(4)
                     Text("Settings").tag(1)
                     Text("Themes").tag(3)
                     Text("Log").tag(2)
@@ -32,6 +33,7 @@ struct MainView: View {
                     case 0: ConnectionsView(model: model)
                     case 1: SettingsView(model: model)
                     case 3: ThemesView(model: model)
+                    case 4: NotesView(model: model)
                     default: LogView(lines: model.log)
                     }
                 }

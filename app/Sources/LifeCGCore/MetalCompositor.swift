@@ -104,6 +104,19 @@ public final class MetalCompositor {
         return device.makeTexture(descriptor: d)
     }
 
+    /// Upload a premultiplied CGImage (for overlays such as speaker notes and the cue screen).
+    public func makeTexture(_ img: CGImage) -> MTLTexture? { Self.texture(device, img) }
+
+    /// Draw full-frame textures over whatever `output` already holds (speaker notes layer).
+    public func encodeOverlay(_ items: [(texture: MTLTexture, alpha: Double)], into cb: MTLCommandBuffer) {
+        let visible = items.filter { $0.alpha > 0.001 }
+        guard !visible.isEmpty else { return }
+        let full = CGRect(x: 0, y: 0, width: GraphicRenderer.width, height: GraphicRenderer.height)
+        pass(cb, output, load: true) { enc in
+            for i in visible { self.draw(enc, i.texture, rect: full, alpha: i.alpha, offset: .zero, clip: nil) }
+        }
+    }
+
     /// Upload a premultiplied CGImage (redrawn into BGRA so the byte layout is guaranteed).
     static func texture(_ device: MTLDevice, _ img: CGImage) -> MTLTexture? {
         let ctx = GraphicRenderer.makeContext(width: img.width, height: img.height)
@@ -202,10 +215,10 @@ public final class MetalCompositor {
         enc.drawPrimitives(type: .triangleStrip, vertexStart: 0, vertexCount: 4)
     }
 
-    private func pass(_ cb: MTLCommandBuffer, _ target: MTLTexture, _ body: (MTLRenderCommandEncoder) -> Void) {
+    private func pass(_ cb: MTLCommandBuffer, _ target: MTLTexture, load: Bool = false, _ body: (MTLRenderCommandEncoder) -> Void) {
         let rp = MTLRenderPassDescriptor()
         rp.colorAttachments[0].texture = target
-        rp.colorAttachments[0].loadAction = .clear
+        rp.colorAttachments[0].loadAction = load ? .load : .clear
         rp.colorAttachments[0].clearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: 0)
         rp.colorAttachments[0].storeAction = .store
         guard let enc = cb.makeRenderCommandEncoder(descriptor: rp) else { return }

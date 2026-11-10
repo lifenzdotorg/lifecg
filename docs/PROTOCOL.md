@@ -80,3 +80,13 @@ The old Companion module (`lifenz-nodecg`) POSTed to
 - `POST /sistas21/remote/speakertitle` `{"action":"no"}` → hide
 
 So an old Companion config can be pointed at `http://<cg-mac>:9123/` while migrating.
+
+## Speaker notes additions (`notes-platform` branch)
+
+* WebSocket message `{"type":"clearAll"}` and `POST /api/clearAll`: hide the title, take the current notes slide
+  off and blank "Next" on the cue screen.
+* `hide` (WebSocket, `POST /api/hide`, legacy NodeCG endpoint) now also takes the current notes slide off.
+* The control GUI's own routes (`/control`, `/api/notes/*`, `/notes/ws`) need a session: the 4-digit PIN
+  (12 h, this browser tab only) or an **operator's LIFE sign-in** through the portal (12 h, or 30 days with
+  *Remember me*; remembered sign-ins are stored hashed in `~/Library/Application Support/LifeCG/control-sessions.json`
+  and re-checked with the portal every 6 h). See `app/Sources/LifeCGCore/NotesServer.swift`.

@@ -31,6 +31,14 @@ export function buildPresets(): {
 		feedbacks: [],
 	}
 
+	presets['clear_all'] = {
+		type: 'simple',
+		name: 'Clear All (title, notes, cue screen)',
+		style: { text: 'CLEAR\\nALL', size: '18', color: WHITE, bgcolor: RED },
+		steps: [{ down: [{ actionId: 'clear_all', options: {} }], up: [] }],
+		feedbacks: [],
+	}
+
 	presets['toggle'] = {
 		type: 'simple',
 		name: 'Toggle Title (red when on air)',
@@ -70,7 +78,7 @@ export function buildPresets(): {
 					id: 'control_main',
 					type: 'simple',
 					name: 'Show / Hide',
-					presets: ['toggle', 'hide', 'on_air_title'],
+					presets: ['toggle', 'hide', 'clear_all', 'on_air_title'],
 				},
 			],
 		},

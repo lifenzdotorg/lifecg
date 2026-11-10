@@ -1,0 +1,8 @@
+node_modules/
+.wrangler/
+.dev.vars
+.fonts/
+public/
+worker-configuration.d.ts
+*.ttf
+*.otf

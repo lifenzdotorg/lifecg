@@ -23,6 +23,21 @@ struct AppSettings: Codable, Equatable {
     /// Active theme id (see ThemeLibrary).
     var themeID = "life"
 
+    // Speaker notes
+    var notesPortalURL = ""
+    var notesDeviceToken = ""
+    var notesAccessClientID = ""
+    var notesAccessClientSecret = ""
+    /// 4-digit PIN for the LAN control GUI (http://<this Mac>:<port>/control).
+    var notesPIN = AppSettings.randomPIN()
+    var cueSyphonName = "LifeCG Cue"
+    /// The cue screen only shows still text, so a low rate is plenty.
+    var cueFrameRate: Double = 25
+    /// Dissolve between notes slides (0 = cut).
+    var notesFade: Double = 0.3
+
+    static func randomPIN() -> String { String(format: "%04d", Int.random(in: 0...9999)) }
+
     static let frameRates: [Double] = [25, 29.97, 30, 50, 59.94, 60]
 
     init() {}
@@ -41,6 +56,23 @@ struct AppSettings: Codable, Equatable {
         frameRate = try c.decodeIfPresent(Double.self, forKey: .frameRate) ?? d.frameRate
         autoClearSeconds = try c.decodeIfPresent(Double.self, forKey: .autoClearSeconds) ?? d.autoClearSeconds
         themeID = try c.decodeIfPresent(String.self, forKey: .themeID) ?? d.themeID
+        notesPortalURL = try c.decodeIfPresent(String.self, forKey: .notesPortalURL) ?? d.notesPortalURL
+        notesDeviceToken = try c.decodeIfPresent(String.self, forKey: .notesDeviceToken) ?? d.notesDeviceToken
+        notesAccessClientID = try c.decodeIfPresent(String.self, forKey: .notesAccessClientID) ?? d.notesAccessClientID
+        notesAccessClientSecret = try c.decodeIfPresent(String.self, forKey: .notesAccessClientSecret) ?? d.notesAccessClientSecret
+        notesPIN = try c.decodeIfPresent(String.self, forKey: .notesPIN) ?? d.notesPIN
+        cueSyphonName = try c.decodeIfPresent(String.self, forKey: .cueSyphonName) ?? d.cueSyphonName
+        cueFrameRate = try c.decodeIfPresent(Double.self, forKey: .cueFrameRate) ?? d.cueFrameRate
+        notesFade = try c.decodeIfPresent(Double.self, forKey: .notesFade) ?? d.notesFade
+    }
+
+    var notesSettings: NotesController.Settings {
+        var n = NotesController.Settings()
+        n.portalURL = notesPortalURL.trimmingCharacters(in: .whitespaces)
+        n.deviceToken = notesDeviceToken.trimmingCharacters(in: .whitespaces)
+        n.accessClientID = notesAccessClientID.trimmingCharacters(in: .whitespaces)
+        n.accessClientSecret = notesAccessClientSecret.trimmingCharacters(in: .whitespaces)
+        return n
     }
 
     static let key = "AppSettings.v1"
@@ -67,6 +99,9 @@ final class AppModel: ObservableObject {
     @Published private(set) var syphonHasClients = false
     @Published private(set) var measuredFPS: Double = 0
     @Published private(set) var themes: [LoadedTheme] = []
+    /// Bumped whenever speaker-notes state changes (the Notes tab observes it).
+    @Published private(set) var notesRevision = 0
+    @Published private(set) var cueHasClients = false
     @Published var settings: AppSettings { didSet { settingsChanged(oldValue) } }
     @Published var launchAtLogin: Bool = false
 
@@ -75,7 +110,11 @@ final class AppModel: ObservableObject {
     let renderer: GraphicRenderer
     let animator: GraphicAnimator
     private(set) var syphon: SyphonOutput?
+    private(set) var cue: CueOutput?
+    let notes: NotesController
+    let notesHub: NotesHub
     private var statusTimer: Timer?
+    private var titleWasOnAir = false
 
     /// The theme currently on output.
     var activeTheme: LoadedTheme { themes.first { $0.theme.id == settings.themeID } ?? themes[0] }
@@ -108,6 +147,9 @@ final class AppModel: ObservableObject {
         // Every Mac that runs macOS 13 has Metal; without it there is nothing to output.
         guard let anim = GraphicAnimator(renderer: r) else { fatalError("LifeCG needs Metal (GPU) support") }
         animator = anim
+        // Speaker notes
+        notes = NotesController(settings: loaded.notesSettings)
+        notesHub = NotesHub(controller: notes, animator: anim)
         animator.setConfig(Self.animatorConfig(loaded))
         store.defaultAutoClearSeconds = loaded.autoClearSeconds
         store.setThemes(active: active.theme.id, all: library.map { ThemeInfo(id: $0.theme.id, name: $0.theme.name) })
@@ -117,16 +159,42 @@ final class AppModel: ObservableObject {
         syphon = SyphonOutput(name: settings.syphonName, device: anim.compositor.device)
         if syphon == nil { addLog("ERROR: Syphon server could not start") }
 
+        cue = CueOutput(name: loaded.cueSyphonName, compositor: anim.compositor, frameRate: loaded.cueFrameRate)
+        if cue == nil { addLog("ERROR: cue Syphon server could not start") }
+        notes.appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "dev"
+        settings.save()   // persists a newly generated PIN
+
         store.onChange = { [weak self] st in
             guard let self else { return }
             self.state = st
             self.server.broadcast(st)
             self.animator.apply(st)
+            // A title going on air replaces the notes slide (one replaces the other).
+            if st.onAir && !self.titleWasOnAir { self.notes.clear() }
+            self.titleWasOnAir = st.onAir
+            self.server.broadcastNotes()
             self.addLog(st.onAir ? "ON AIR: \(st.current!.title)\(st.current!.designation.isEmpty ? "" : " — \(st.current!.designation)")" : "Off air")
         }
         server.onLog = { [weak self] in self?.addLog($0) }
         server.onClientsChanged = { [weak self] in self?.clients = $0 }
         server.onSetTheme = { [weak self] id in self?.selectTheme(id) ?? false }
+        server.onHide = { [weak self] in self?.notes.clear() }
+        server.onClearAll = { [weak self] in self?.notes.clearAll() }
+        server.notesHub = notesHub
+        server.notesPIN = { [weak self] in self?.settings.notesPIN ?? "" }
+        server.notesSessionFile = NotesController.defaultCacheDir.deletingLastPathComponent().appendingPathComponent("control-sessions.json")
+        notes.onLog = { [weak self] in self?.addLog($0) }
+        notesHub.titleOnAir = { [weak self] in self?.store.state.onAir ?? false }
+        notesHub.onNotesWentLive = { [weak self] in
+            guard let self, self.store.state.onAir else { return }
+            self.store.hide()
+        }
+        notesHub.onCue = { [weak self] c in self?.cue?.show(c) }
+        notesHub.onStateChange = { [weak self] in
+            guard let self else { return }
+            self.server.broadcastNotes()
+            self.notesRevision &+= 1
+        }
         let syphon = self.syphon
         animator.onFrame = { tex, cb in syphon?.publish(tex, on: cb) }   // render queue
         animator.onPreview = { [weak self] img in                         // main queue
@@ -135,12 +203,17 @@ final class AppModel: ObservableObject {
 
         startServer()
         animator.start()
+        notesHub.apply()
+        cue?.show(notesHub.cueContent)
+        notes.startSync()
         statusTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
             guard let self else { return }
             let fps = self.animator.measuredFPS()
             if abs(fps - self.measuredFPS) > 0.05 { self.measuredFPS = fps }
             let has = self.syphon?.hasClients ?? false
             if has != self.syphonHasClients { self.syphonHasClients = has }
+            let cueHas = self.cue?.hasClients ?? false
+            if cueHas != self.cueHasClients { self.cueHasClients = cueHas }
         }
         addLog("Syphon server: \(settings.syphonName)")
         addLog("Fonts: \(fontNames.title) / \(fontNames.designation)")
@@ -224,6 +297,7 @@ final class AppModel: ObservableObject {
         c.outTransition = s.transitionOut
         c.frameRate = s.frameRate
         c.offset = CGPoint(x: s.offsetX, y: s.offsetY)
+        c.notesFade = s.notesFade
         return c
     }
 
@@ -232,6 +306,8 @@ final class AppModel: ObservableObject {
         server.stop()
         animator.stop()
         syphon?.stop()
+        cue?.stop()
+        notes.stopSync()
     }
 
     // MARK: Helpers
@@ -245,6 +321,10 @@ final class AppModel: ObservableObject {
         let newConfig = Self.animatorConfig(settings)
         if newConfig != Self.animatorConfig(old) { animator.setConfig(newConfig) }
         if settings.themeID != old.themeID { applyActiveTheme() }
+        if settings.notesSettings != old.notesSettings { notes.settings = settings.notesSettings }
+        if settings.notesPIN != old.notesPIN { server.resetNotesSessions(kind: "pin"); addLog("Control GUI PIN changed") }
+        if settings.cueSyphonName != old.cueSyphonName, !settings.cueSyphonName.isEmpty { cue?.rename(settings.cueSyphonName) }
+        if settings.cueFrameRate != old.cueFrameRate { cue?.setFrameRate(settings.cueFrameRate) }
         if settings.transitionIn != old.transitionIn || settings.transitionOut != old.transitionOut {
             addLog("Transitions: on = \(settings.transitionIn.label), off = \(settings.transitionOut.label)")
         }

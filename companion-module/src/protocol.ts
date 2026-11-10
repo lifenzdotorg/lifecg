@@ -45,6 +45,7 @@ export type ClientMessage =
 	| { type: 'showRecent'; id: string; autoClear?: boolean; autoClearSeconds?: number }
 	| { type: 'showRecent'; index: number; autoClear?: boolean; autoClearSeconds?: number }
 	| { type: 'hide' }
+	| { type: 'clearAll' }
 	| { type: 'toggle' }
 	| { type: 'removeRecent'; id: string }
 	| { type: 'clearRecent' }
